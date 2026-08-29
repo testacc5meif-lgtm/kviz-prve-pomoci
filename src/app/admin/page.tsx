@@ -3,6 +3,8 @@
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { GroupReport } from "@/components/GroupReport";
+import { Bar, Tile, accColor, dt } from "@/components/adminUi";
 import { formatDuration } from "@/lib/quiz";
 import type { AdminStats, PlayerDetail } from "@/lib/stats";
 
@@ -22,53 +24,17 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
 
 const WATCH_KEY = "ck_pracene_osobe";
 
-function dt(iso: string) {
-  return new Date(iso).toLocaleString("sr-RS", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function isoDay(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() - offsetDays);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function accColor(v: number) {
-  return v >= 80 ? "var(--green)" : v >= 60 ? "var(--amber)" : "var(--red)";
-}
-
-function Bar({ value, color = "var(--green)" }: { value: number; color?: string }) {
-  return (
-    <div className="h-2 w-full min-w-[70px] overflow-hidden rounded-full bg-white/10">
-      <div
-        className="h-full rounded-full transition-[width] duration-700 ease-out"
-        style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: color }}
-      />
-    </div>
-  );
-}
-
-function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
-  return (
-    <div className="glass rounded-xl p-4">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--faint)]">{label}</div>
-      <div className="tabular mt-1 text-2xl font-extrabold" style={{ color: color ?? "#fff" }}>
-        {value}
-      </div>
-      {sub && <div className="mt-0.5 text-[11px] text-[var(--muted)]">{sub}</div>}
-    </div>
-  );
-}
-
 /* ─────────────────── detaljna kartica jednog takmičara ─────────────────── */
 
 function DetailCard({ d, bank }: { d: PlayerDetail; bank: number }) {
-  const [open, setOpen] = useState(true);
+  // Sklopljeno po difoltu — grupa moze imati 6+ ljudi, pa se strana ne razvlaci.
+  const [open, setOpen] = useState(false);
   const rounds = d.sessions.filter((s) => s.kind === "round");
   const best = d.sessions.reduce((m, s) => Math.max(m, s.percent), 0);
   const avg = rounds.length
@@ -77,32 +43,37 @@ function DetailCard({ d, bank }: { d: PlayerDetail; bank: number }) {
   const stillWrong = d.mistakes.filter((m) => m.stillWrong);
 
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-2xl p-4">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 text-left">
         <div className="min-w-0 flex-1">
-          <div className="truncate text-lg font-extrabold text-white">{d.name}</div>
-          {d.team && <div className="truncate text-xs text-[var(--faint)]">{d.team}</div>}
+          <div className="truncate font-extrabold text-white">{d.name}</div>
+          <div className="tabular truncate text-[11px] text-[var(--faint)]">
+            {d.team ? `${d.team} · ` : ""}
+            {rounds.length} rundi · savladano {d.mastered}/{bank} · {d.weak} za popravku
+          </div>
         </div>
         <div className="tabular text-right">
-          <div className="text-xl font-extrabold" style={{ color: accColor(best) }}>
+          <div className="font-extrabold" style={{ color: accColor(best) }}>
             {best}%
           </div>
           <div className="text-[10px] text-[var(--faint)]">najbolji</div>
         </div>
-        <span className="text-[var(--faint)]">{open ? "▾" : "▸"}</span>
+        <span className="shrink-0 rounded-lg bg-white/8 px-2.5 py-1.5 text-xs font-bold text-[var(--muted)]">
+          {open ? "▾ sakrij" : `▸ greške (${d.mistakes.length})`}
+        </span>
       </button>
-
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Tile label="Rundi" value={String(rounds.length)} sub={`+${d.sessions.length - rounds.length} popravnih`} />
-        <Tile label="Prosek" value={`${avg}%`} color={accColor(avg)} />
-        <Tile label="Savladano" value={`${d.mastered}/${bank}`} sub={`${d.coverage}%`} color="var(--cyan)" />
-        <Tile label="Za popravku" value={String(d.weak)} sub={`${d.unseen} još neviđenih`} color="var(--amber)" />
-      </div>
 
       {/* Bez animacije visine — takva animacija ume da se zaledi ako pregledac
           pauzira JS animacije i onda razvuce praznu povrsinu. */}
       {open && (
         <div>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Tile label="Rundi" value={String(rounds.length)} sub={`+${d.sessions.length - rounds.length} popravnih`} />
+              <Tile label="Prosek" value={`${avg}%`} color={accColor(avg)} />
+              <Tile label="Savladano" value={`${d.mastered}/${bank}`} sub={`${d.coverage}%`} color="var(--cyan)" />
+              <Tile label="Za popravku" value={String(d.weak)} sub={`${d.unseen} još neviđenih`} color="var(--amber)" />
+            </div>
+
             {d.topics.length > 0 && (
               <div className="mt-5">
                 <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">
@@ -234,6 +205,7 @@ export default function AdminPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [watched, setWatched] = useState<string[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Izbor praćenih osoba pamtimo u pregledaču — da se ne čekira svaki put iznova.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -567,9 +539,28 @@ export default function AdminPage() {
         {/* ───────────── MOJA GRUPA ───────────── */}
         {tab === "grupa" && (
           <div className="space-y-4">
-            <div className="glass rounded-2xl p-5">
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-[var(--muted)]">Koga pratiš</h2>
-              <p className="mt-1 text-[13px] text-[var(--muted)]">
+            <div className="glass rounded-2xl p-4">
+              <button
+                onClick={() => setPickerOpen((v) => !v)}
+                className="flex w-full items-center gap-3 text-left"
+              >
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-extrabold uppercase tracking-wider text-[var(--muted)]">
+                    Koga pratiš
+                  </h2>
+                  <p className="truncate text-[12px] text-[var(--faint)]">
+                    {watched.length
+                      ? `${watched.length} od ${stats.roster.length}: ${stats.detail.map((d) => d.name).join(", ")}`
+                      : "još niko nije označen"}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-lg bg-white/8 px-2.5 py-1.5 text-xs font-bold text-[var(--muted)]">
+                  {pickerOpen ? "▾ sakrij" : "▸ izmeni"}
+                </span>
+              </button>
+
+              <div className={pickerOpen || watched.length === 0 ? "" : "hidden"}>
+              <p className="mt-3 text-[13px] text-[var(--muted)]">
                 Klikni na imena onih koje želiš detaljno da pratiš. Izbor se pamti na ovom računaru.
               </p>
 
@@ -610,6 +601,7 @@ export default function AdminPage() {
                   Poništi izbor
                 </button>
               )}
+              </div>
             </div>
 
             {watched.length === 0 ? (
@@ -626,7 +618,18 @@ export default function AdminPage() {
                 Označene osobe nemaju odigranih rundi u izabranom periodu.
               </div>
             ) : (
-              stats.detail.map((d) => <DetailCard key={d.key} d={d} bank={t.questionsInBank} />)
+              <>
+                <GroupReport detail={stats.detail} bank={t.questionsInBank} />
+
+                <h2 className="mt-7 text-sm font-extrabold uppercase tracking-wider text-[var(--muted)]">
+                  Pojedinačno po takmičaru
+                </h2>
+                <div className="space-y-3">
+                  {stats.detail.map((d) => (
+                    <DetailCard key={d.key} d={d} bank={t.questionsInBank} />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}

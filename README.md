@@ -85,10 +85,18 @@ Na `/admin`, lozinka: **`CrveniKrstMionica18`** (ili ono što staviš u `ADMIN_P
 Šta se vidi:
 
 - **Pregled** — broj takmičara, rundi, prosečan rezultat, rang lista
-- **⭐ Moja grupa** — označiš koga pratiš (npr. onih 6 takmičara) i za svakog dobijaš:
-  **svako pitanje koje je promašio, šta je izabrao i koji je tačan odgovor**,
-  koliko puta je isto pitanje promašio, da li ga i dalje ne zna, razradu po
-  oblastima i spisak svih njegovih rundi. Izbor se pamti na tvom računaru.
+- **⭐ Moja grupa** — označiš koga pratiš (npr. onih 6 takmičara) i dobijaš dva nivoa:
+
+  **1) Zajednički izveštaj cele grupe:** prosek grupe, prosečna pokrivenost baze,
+  koje oblasti im najslabije idu, i spisak **pitanja koja grupa ne zna** — sortiran
+  po tome koliko članova ga i dalje ne zna („4 od 6 još ne zna"). Klik na pitanje
+  otvara **ko je tačno promašio i šta je svako od njih izabrao**.
+
+  **2) Pojedinačno po takmičaru:** sklopljene kartice (jedan red po osobi) koje se
+  otvaraju na klik — svako pitanje koje je promašio, šta je izabrao, tačan odgovor,
+  koliko puta ga je promašio, razrada po oblastima i spisak svih njegovih rundi.
+
+  Izbor praćenih osoba se pamti na tvom računaru.
 - **Svi takmičari** — tabela sa čekiranjem za praćenje; broj rundi, najbolji i
   prosečan rezultat, tačnost, savladano od 90, najduži niz, prosečno vreme
 - **Sve runde** — svaka odigrana runda pojedinačno
