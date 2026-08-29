@@ -52,6 +52,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "a03",
     topic: "pristup",
+    group: "znak-na-fotografiji",
     visual: "☢️",
     text: "Koji znak je prikazan iznad?",
     options: [
@@ -75,6 +76,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "a05",
     topic: "pristup",
+    group: "voltin-luk",
     text: "Struja visokog napona oslobođena iz oštećenih vodova može u vidu luka (Voltin luk) do čak 18 m da izazove strujni udar. Zato je prva aktivnost spasioca pri nailasku na mesto nesreće:",
     options: [
       "Ne prilaziti do udaljenosti od 9 metara",
@@ -88,6 +90,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "b06",
     topic: "pregled",
+    group: "primarni-pregled",
     text: "Primarni pregled povređenog podrazumeva proveru:",
     options: [
       "Svih vidljivih povreda",
@@ -848,6 +851,75 @@ export const QUESTIONS: Question[] = [
       "Postaviti povređenog u ležeći položaj sa podignutim nogama",
       "Podići povređenog i postaviti ga da sedne",
       "Umiti povređenog i dati mu šećer",
+    ],
+    correct: 0,
+  },
+
+  // ─────────── VERZIJA E (dopunski list, tačni odgovori sa crvenom oznakom) ───────────
+  {
+    id: "e01",
+    topic: "pristup",
+    text: "Osnovna 4 cilja prve pomoći su:",
+    options: [
+      "Očuvati svest, otvoriti disajni put, očuvati puls i zaustaviti krvarenje",
+      "Spasiti život, obavestiti hitne službe, pružiti psihološku prvu pomoć i negu povređenog",
+      "Spasiti život, sprečavanje daljeg pogoršanja stanja, ubrzanje izlečenja i smanjenje invalidnosti",
+    ],
+    correct: 2,
+  },
+  {
+    id: "e02",
+    topic: "pristup",
+    text: "Nakon procene situacije, koji je prvi sledeći korak u postupku na mestu nesreće?",
+    options: [
+      "Bezbednost spasioca i povređenog",
+      "Poziv hitnim službama",
+      "Pružanje neodložnih mera pomoći",
+    ],
+    correct: 0,
+  },
+  {
+    id: "e03",
+    topic: "pristup",
+    group: "znak-na-fotografiji",
+    plate: { top: "30", bottom: "1202" },
+    text: "Koji znak se nalazi na fotografiji iznad?",
+    options: [
+      "Oznaka za broj auto i moto puteva",
+      "Specijalna oznaka za transport opasnih materija",
+      "Specijalna oznaka za opasnost od trovanja",
+    ],
+    correct: 1,
+    note: "Narandžasta tablica na vozilu: gornji broj je oznaka opasnosti, donji je UN broj materije (1202 = dizel gorivo).",
+  },
+  {
+    id: "e04",
+    topic: "pristup",
+    text: "Požarni trougao čine:",
+    options: [
+      "Plamen, vazduh i kiseonik",
+      "Gorivi materijal, strujanje vazduha i kiseonik",
+      "Kiseonik, varnica i gorivi materijal",
+    ],
+    correct: 2,
+  },
+  {
+    id: "e05",
+    topic: "pristup",
+    group: "voltin-luk",
+    text: "Struja visokog napona oslobođena iz oštećenih vodova može se u vidu luka (Voltin luk) širiti na udaljenosti od:",
+    options: ["9 metara", "18 metara", "27 metara"],
+    correct: 1,
+  },
+  {
+    id: "e06",
+    topic: "pregled",
+    group: "primarni-pregled",
+    text: "Primarni pregled povređenog podrazumeva proveru:",
+    options: [
+      "Svesti, prohodnosti disajnog puta i disanje",
+      "Svesti, glave i vrata i disanja",
+      "Svesti, disanja i pulsa",
     ],
     correct: 0,
   },

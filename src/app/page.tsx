@@ -81,8 +81,8 @@ export default function Home() {
           >
             {/* ── Hero ── */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ scale: 0.85 }}
+              animate={{ scale: 1 }}
               transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="mb-6"
             >
@@ -93,8 +93,8 @@ export default function Home() {
             </motion.div>
 
             <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 12 }}
+              animate={{ y: 0 }}
               transition={{ delay: 0.25 }}
               className="mb-3 text-[11px] font-bold uppercase tracking-[0.32em] text-[var(--muted)]"
             >
@@ -102,8 +102,8 @@ export default function Home() {
             </motion.p>
 
             <motion.h1
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 18 }}
+              animate={{ y: 0 }}
               transition={{ delay: 0.32, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               className="gradient-text text-center text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl"
             >
@@ -111,8 +111,8 @@ export default function Home() {
             </motion.h1>
 
             <motion.p
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 14 }}
+              animate={{ y: 0 }}
               transition={{ delay: 0.42 }}
               className="mt-4 max-w-xl text-center text-[15px] leading-relaxed text-[var(--muted)] sm:text-base"
             >
@@ -123,8 +123,8 @@ export default function Home() {
 
             {/* ── Brojke ── */}
             <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 14 }}
+              animate={{ y: 0 }}
               transition={{ delay: 0.5 }}
               className="mt-7 flex flex-wrap items-center justify-center gap-2.5"
             >
@@ -143,8 +143,8 @@ export default function Home() {
             {/* ── Forma ── */}
             <motion.form
               onSubmit={start}
-              initial={{ opacity: 0, y: 26 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 26 }}
+              animate={{ y: 0 }}
               transition={{ delay: 0.58, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               className="glass glow-red mt-9 w-full max-w-md rounded-2xl p-6"
             >
@@ -206,8 +206,8 @@ export default function Home() {
 
             {/* ── Režimi igre ── */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ y: 10 }}
+              animate={{ y: 0 }}
               transition={{ delay: 0.75 }}
               className="mt-14 w-full"
             >
@@ -218,8 +218,8 @@ export default function Home() {
                 {MODES.map(([id, cfg], i) => (
                   <motion.div
                     key={id}
-                    initial={{ opacity: 0, y: 18 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ y: 18 }}
+                    animate={{ y: 0 }}
                     transition={{ delay: 0.8 + i * 0.07 }}
                     whileHover={{ y: -5 }}
                     className="glass rounded-xl p-4"
@@ -241,8 +241,8 @@ export default function Home() {
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ y: 10 }}
+              animate={{ y: 0 }}
               transition={{ delay: 1.1 }}
               className="mt-12 flex flex-col items-center gap-3 pb-6"
             >

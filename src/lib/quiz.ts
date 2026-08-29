@@ -18,18 +18,18 @@ export const MODE_CONFIG: Record<
   speed: {
     label: "Brzi metak",
     emoji: "⚡",
-    seconds: 10,
+    seconds: 20,
     base: 150,
     color: "#facc15",
-    hint: "Samo 10 sekundi! Reaguj kao na terenu.",
+    hint: "20 sekundi — taman da pročitaš i odlučiš. Brži odgovor, više bodova.",
   },
   elimination: {
     label: "Pola-pola",
     emoji: "✂️",
-    seconds: 20,
+    seconds: 30,
     base: 140,
     color: "#a78bfa",
-    hint: "Ako oklevaš, posle 7s nestaje jedan netačan odgovor — ali i bodovi padaju.",
+    hint: "Ako oklevaš, posle 12s nestaje jedan netačan odgovor — ali i bodovi padaju.",
   },
   double: {
     label: "Duplo ili ništa",
@@ -42,17 +42,17 @@ export const MODE_CONFIG: Record<
   lightning: {
     label: "Munja",
     emoji: "🔥",
-    seconds: 8,
+    seconds: 15,
     base: 200,
     color: "#f97316",
-    hint: "Finiš! 8 sekundi, najviše bodova u igri.",
+    hint: "Finiš! 15 sekundi, najviše bodova u igri.",
   },
 };
 
 /** Kazneni bodovi za promašen "Duplo ili ništa". */
 export const DOUBLE_PENALTY = 100;
 /** Posle koliko sekundi "Pola-pola" ukloni jedan netačan odgovor. */
-export const ELIMINATION_AFTER = 7;
+export const ELIMINATION_AFTER = 12;
 /** Umanjenje bodova ako je igrač dočekao eliminaciju netačnog odgovora. */
 export const ELIMINATION_PENALTY_FACTOR = 0.5;
 
@@ -211,13 +211,15 @@ export function assignModes(count: number, rand: () => number): GameMode[] {
 }
 
 /** Sastavlja kompletnu rundu: izmešana pitanja + izmešane opcije + režimi. */
+export type BuiltQuestion = RoundQuestion & { order: number[] };
+
 export function buildRound(opts: {
   count: number;
   mastered: Set<string>;
   weak: Set<string>;
   seed: number;
   only?: string[];
-}): RoundQuestion[] {
+}): BuiltQuestion[] {
   const rand = rng(opts.seed);
   const picked = pickQuestions({ ...opts, rand });
   const modes = assignModes(picked.length, rand);
@@ -236,6 +238,8 @@ export function buildRound(opts: {
       mode: modes[i],
       note: q.note,
       visual: q.visual,
+      plate: q.plate,
+      order,
     };
   });
 }

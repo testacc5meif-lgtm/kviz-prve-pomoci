@@ -23,6 +23,8 @@ export type Question = {
   note?: string;
   /** Emoji/simbol umesto fotografije koje nema u dokumentu. */
   visual?: string;
+  /** Narandžasta ADR tablica za transport opasnih materija (gornji i donji broj). */
+  plate?: { top: string; bottom: string };
 };
 
 export type GameMode = "classic" | "speed" | "elimination" | "double" | "lightning";
@@ -37,6 +39,7 @@ export type RoundQuestion = {
   mode: GameMode;
   note?: string;
   visual?: string;
+  plate?: { top: string; bottom: string };
 };
 
 export type AnswerRecord = {

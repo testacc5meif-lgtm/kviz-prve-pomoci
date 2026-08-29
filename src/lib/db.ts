@@ -42,7 +42,10 @@ export type StoredAnswer = {
   questionId: string;
   topic: string;
   mode: string;
+  /** Pozicija dugmeta na ekranu (opcije su izmešane). */
   chosen: number | null;
+  /** Index u originalnom nizu opcija iz questions.ts — za prikaz šta je tačno izabrao. */
+  chosenOriginal: number | null;
   correctIdx: number;
   isCorrect: boolean;
   timeMs: number;
@@ -113,14 +116,19 @@ function createPostgresStore(url: string): Store {
             question_id   TEXT NOT NULL,
             topic         TEXT NOT NULL,
             mode          TEXT NOT NULL,
-            chosen        INTEGER,
-            correct_idx   INTEGER NOT NULL,
+            chosen           INTEGER,
+            chosen_original  INTEGER,
+            correct_idx      INTEGER NOT NULL,
             is_correct    BOOLEAN NOT NULL,
             time_ms       INTEGER NOT NULL,
             points        INTEGER NOT NULL,
             created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
           )`;
+        // Za baze napravljene pre nego što je kolona dodata.
+        await sql`ALTER TABLE quiz_answers ADD COLUMN IF NOT EXISTS chosen_original INTEGER`;
         await sql`CREATE INDEX IF NOT EXISTS quiz_answers_player ON quiz_answers (player_key)`;
+        await sql`CREATE INDEX IF NOT EXISTS quiz_answers_created ON quiz_answers (created_at)`;
+        await sql`CREATE INDEX IF NOT EXISTS quiz_sessions_finished ON quiz_sessions (finished_at)`;
         await sql`CREATE INDEX IF NOT EXISTS quiz_answers_question ON quiz_answers (question_id)`;
         await sql`CREATE INDEX IF NOT EXISTS quiz_answers_session ON quiz_answers (session_id)`;
         await sql`CREATE INDEX IF NOT EXISTS quiz_sessions_player ON quiz_sessions (player_key)`;
@@ -152,11 +160,12 @@ function createPostgresStore(url: string): Store {
       for (const a of answers) {
         await sql`
           INSERT INTO quiz_answers
-            (session_id, player_key, question_id, topic, mode, chosen, correct_idx,
-             is_correct, time_ms, points, created_at)
+            (session_id, player_key, question_id, topic, mode, chosen, chosen_original,
+             correct_idx, is_correct, time_ms, points, created_at)
           VALUES
             (${a.sessionId}, ${a.playerKey}, ${a.questionId}, ${a.topic}, ${a.mode},
-             ${a.chosen}, ${a.correctIdx}, ${a.isCorrect}, ${a.timeMs}, ${a.points}, ${a.createdAt})`;
+             ${a.chosen}, ${a.chosenOriginal}, ${a.correctIdx}, ${a.isCorrect},
+             ${a.timeMs}, ${a.points}, ${a.createdAt})`;
       }
     },
 
@@ -214,6 +223,10 @@ function createPostgresStore(url: string): Store {
             topic: String(r.topic),
             mode: String(r.mode),
             chosen: r.chosen === null || r.chosen === undefined ? null : Number(r.chosen),
+            chosenOriginal:
+              r.chosen_original === null || r.chosen_original === undefined
+                ? null
+                : Number(r.chosen_original),
             correctIdx: Number(r.correct_idx),
             isCorrect: Boolean(r.is_correct),
             timeMs: Number(r.time_ms),

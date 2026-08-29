@@ -60,8 +60,41 @@ export type ModeStat = {
   avgTimeMs: number;
 };
 
+/** Jedno pitanje koje je takmičar promašio — sa tim ŠTA je izabrao. */
+export type PlayerMistake = {
+  questionId: string;
+  text: string;
+  topicLabel: string;
+  emoji: string;
+  color: string;
+  /** Šta je izabrao. null = isteklo vreme. */
+  chosenText: string | null;
+  correctText: string;
+  /** Koliko puta je promašio baš to pitanje. */
+  times: number;
+  lastAt: string;
+  /** Da li je i dalje ne zna (poslednji odgovor bio netačan). */
+  stillWrong: boolean;
+};
+
+/** Detaljna analiza za jednog takmičara — pravi se samo za označene igrače. */
+export type PlayerDetail = {
+  key: string;
+  name: string;
+  team: string;
+  mistakes: PlayerMistake[];
+  topics: TopicStat[];
+  modes: ModeStat[];
+  sessions: StoredSession[];
+  mastered: number;
+  weak: number;
+  unseen: number;
+  coverage: number;
+};
+
 export type AdminStats = {
   driver: string;
+  detail: PlayerDetail[];
   generatedAt: string;
   totals: {
     players: number;
@@ -87,10 +120,125 @@ export type AdminStats = {
 
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0);
 
+/** Tekst opcije koju je takmičar izabrao (opcije su bile izmešane, pa čuvamo originalni index). */
+function optionText(questionId: string, originalIdx: number | null): string | null {
+  if (originalIdx === null) return null;
+  return QUESTION_BY_ID.get(questionId)?.options[originalIdx] ?? null;
+}
+
+function topicStatsFrom(answers: StoredAnswer[]): TopicStat[] {
+  const agg = new Map<string, { asked: number; correct: number }>();
+  for (const a of answers) {
+    const t = agg.get(a.topic) ?? { asked: 0, correct: 0 };
+    t.asked += 1;
+    if (a.isCorrect) t.correct += 1;
+    agg.set(a.topic, t);
+  }
+  return (Object.keys(TOPICS) as TopicId[]).map((id) => {
+    const x = agg.get(id) ?? { asked: 0, correct: 0 };
+    return {
+      topic: id,
+      label: TOPICS[id].short,
+      emoji: TOPICS[id].emoji,
+      color: TOPICS[id].color,
+      asked: x.asked,
+      correct: x.correct,
+      accuracy: pct(x.correct, x.asked),
+    };
+  });
+}
+
+function modeStatsFrom(answers: StoredAnswer[]): ModeStat[] {
+  const agg = new Map<string, { asked: number; correct: number; time: number }>();
+  for (const a of answers) {
+    const m = agg.get(a.mode) ?? { asked: 0, correct: 0, time: 0 };
+    m.asked += 1;
+    if (a.isCorrect) m.correct += 1;
+    m.time += a.timeMs;
+    agg.set(a.mode, m);
+  }
+  return (Object.keys(MODE_CONFIG) as GameMode[]).map((id) => {
+    const x = agg.get(id) ?? { asked: 0, correct: 0, time: 0 };
+    return {
+      mode: id,
+      label: MODE_CONFIG[id].label,
+      emoji: MODE_CONFIG[id].emoji,
+      asked: x.asked,
+      correct: x.correct,
+      accuracy: pct(x.correct, x.asked),
+      avgTimeMs: x.asked ? Math.round(x.time / x.asked) : 0,
+    };
+  });
+}
+
+function buildPlayerDetail(
+  key: string,
+  sessions: StoredSession[],
+  answers: StoredAnswer[]
+): PlayerDetail | null {
+  const mine = answers.filter((a) => a.playerKey === key);
+  const mySessions = sessions.filter((s) => s.playerKey === key);
+  if (!mine.length && !mySessions.length) return null;
+
+  const last = new Map<string, boolean>();
+  for (const a of mine) last.set(a.questionId, a.isCorrect);
+
+  // Grupišemo po pitanju — da se vidi šta uporno greši, a ne samo pojedinačni promašaj.
+  const grouped = new Map<string, { times: number; lastAt: string; chosen: number | null }>();
+  for (const a of mine) {
+    if (a.isCorrect) continue;
+    const g = grouped.get(a.questionId) ?? { times: 0, lastAt: a.createdAt, chosen: a.chosenOriginal };
+    g.times += 1;
+    if (a.createdAt >= g.lastAt) {
+      g.lastAt = a.createdAt;
+      g.chosen = a.chosenOriginal;
+    }
+    grouped.set(a.questionId, g);
+  }
+
+  const mistakes: PlayerMistake[] = [...grouped]
+    .map(([qid, g]) => {
+      const q = QUESTION_BY_ID.get(qid);
+      const topic = q ? TOPICS[q.topic] : null;
+      return {
+        questionId: qid,
+        text: q?.text ?? qid,
+        topicLabel: topic?.short ?? "",
+        emoji: topic?.emoji ?? "",
+        color: topic?.color ?? "#94a3b8",
+        chosenText: optionText(qid, g.chosen),
+        correctText: q ? q.options[q.correct] : "",
+        times: g.times,
+        lastAt: g.lastAt,
+        stillWrong: last.get(qid) === false,
+      };
+    })
+    // Prvo ono što i dalje ne zna, pa ono što najviše puta greši.
+    .sort((a, b) => Number(b.stillWrong) - Number(a.stillWrong) || b.times - a.times);
+
+  const mastered = [...last.values()].filter(Boolean).length;
+  const weak = [...last.values()].filter((ok) => !ok).length;
+
+  return {
+    key,
+    name: mySessions[0]?.playerName ?? key,
+    team: mySessions.find((s) => s.team)?.team ?? "",
+    mistakes,
+    topics: topicStatsFrom(mine).filter((t) => t.asked > 0),
+    modes: modeStatsFrom(mine).filter((m) => m.asked > 0),
+    sessions: mySessions,
+    mastered,
+    weak,
+    unseen: QUESTIONS.length - last.size,
+    coverage: pct(mastered, QUESTIONS.length),
+  };
+}
+
 export function buildStats(
   sessions: StoredSession[],
   answers: StoredAnswer[],
-  driver: string
+  driver: string,
+  detailFor: string[] = []
 ): AdminStats {
   const byPlayer = new Map<string, PlayerStat>();
   const answersByPlayer = new Map<string, StoredAnswer[]>();
@@ -244,6 +392,9 @@ export function buildStats(
 
   return {
     driver,
+    detail: detailFor
+      .map((key) => buildPlayerDetail(key, sessions, answers))
+      .filter((d): d is PlayerDetail => d !== null),
     generatedAt: new Date().toISOString(),
     totals: {
       players: byPlayer.size,
@@ -287,6 +438,7 @@ export function answersToCsv(sessions: StoredSession[], answers: StoredAnswer[])
     "rezim",
     "pitanje",
     "izabran_odgovor",
+    "tekst_izabranog",
     "tacan_odgovor",
     "tacno",
     "vreme_ms",
@@ -307,7 +459,8 @@ export function answersToCsv(sessions: StoredSession[], answers: StoredAnswer[])
       a.mode,
       q?.text ?? "",
       a.chosen === null ? "(isteklo vreme)" : String(a.chosen + 1),
-      String(a.correctIdx + 1),
+      a.chosenOriginal === null ? "(isteklo vreme)" : (q?.options[a.chosenOriginal] ?? ""),
+      q ? q.options[q.correct] : String(a.correctIdx + 1),
       a.isCorrect ? "DA" : "NE",
       a.timeMs,
       a.points,

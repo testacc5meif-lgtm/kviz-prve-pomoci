@@ -49,6 +49,8 @@ export default function KvizPage() {
   const [busy, setBusy] = useState(false);
   const [countdown, setCountdown] = useState(3);
 
+  /** Index pitanja koje je vec odgovoreno — brava koja radi odmah, bez cekanja re-rendera. */
+  const answeredIndex = useRef(-1);
   const questionStart = useRef(0);
   const roundStart = useRef(0);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,6 +106,7 @@ export default function KvizPage() {
         setEliminated(null);
         setElapsed(0);
         setPlayed([]);
+        answeredIndex.current = -1;
         setScore(0);
         setStreak(0);
         setBestStreak(0);
@@ -136,6 +139,7 @@ export default function KvizPage() {
       setTimeout(() => {
         roundStart.current = Date.now();
         questionStart.current = Date.now() + CARD_TRANSITION_MS;
+        answeredIndex.current = -1;
         setElapsed(0);
         setVerdict(null);
         setEliminated(null);
@@ -148,6 +152,9 @@ export default function KvizPage() {
   const finishAnswer = useCallback(
     (choice: number | null) => {
       if (!current || verdict !== null) return;
+
+      if (answeredIndex.current === index) return;
+      answeredIndex.current = index;
 
       const spent = Math.max(0, Math.min(msTotal, Date.now() - questionStart.current));
       const isCorrect = choice !== null && choice === current.correct;
@@ -162,7 +169,13 @@ export default function KvizPage() {
 
       setVerdict({ chosen: choice, points });
       setScore((s) => s + points);
-      setPlayed((p) => [...p, { question: current, chosen: choice, isCorrect, points, timeMs: spent }]);
+      // Upisujemo NA MESTO pitanja, ne na kraj niza — tako je nemoguce dobiti
+      // vise odgovora nego sto runda ima pitanja.
+      setPlayed((p) => {
+        const next = p.slice();
+        next[index] = { question: current, chosen: choice, isCorrect, points, timeMs: spent };
+        return next;
+      });
       setPop({ id: Date.now(), points });
 
       if (isCorrect) {
@@ -175,7 +188,7 @@ export default function KvizPage() {
         setStreak(0);
       }
     },
-    [current, verdict, msTotal, streak]
+    [current, verdict, msTotal, streak, index]
   );
 
   // Sat drzimo u refu da interval ne mora da se pravi iznova na svaku promenu bodova.
@@ -253,10 +266,10 @@ export default function KvizPage() {
             name,
             team,
             startedAt: roundStart.current,
-            answers: played.map((a) => ({
-              chosen: a.chosen,
-              timeMs: a.timeMs,
-              points: a.points,
+            answers: Array.from({ length: round.length }, (_, i) => ({
+              chosen: played[i]?.chosen ?? null,
+              timeMs: played[i]?.timeMs ?? 0,
+              points: played[i]?.points ?? 0,
             })),
           }),
         });
@@ -276,7 +289,7 @@ export default function KvizPage() {
     return () => {
       cancelled = true;
     };
-  }, [phase, played, token, name, team]);
+  }, [phase, played, token, name, team, round.length]);
 
   /* ── tastatura ── */
   useEffect(() => {
@@ -379,7 +392,7 @@ export default function KvizPage() {
     return (
       <main key="finished" className="mx-auto w-full max-w-2xl px-5 py-8 sm:py-12">
         <ResultScreen
-          answers={played}
+          answers={played.filter(Boolean)}
           score={score}
           durationMs={durationMs}
           bestStreak={bestStreak}

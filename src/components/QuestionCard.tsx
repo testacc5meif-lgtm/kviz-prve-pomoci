@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { TOPICS } from "@/lib/questions";
 import { MODE_CONFIG } from "@/lib/quiz";
 import type { RoundQuestion } from "@/lib/types";
@@ -62,6 +62,21 @@ export function QuestionCard({
           </span>
         </div>
 
+        {question.plate && (
+          <motion.div
+            initial={{ scale: 0.7, rotate: -6 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 220, damping: 15 }}
+            className="mb-4 flex justify-center"
+          >
+            {/* Narandžasta ADR tablica, kao na vozilu */}
+            <div className="tabular overflow-hidden rounded-md border-[3px] border-black bg-[#f5a623] text-center font-extrabold leading-none text-black shadow-lg">
+              <div className="border-b-[3px] border-black px-6 py-2 text-2xl tracking-wider">{question.plate.top}</div>
+              <div className="px-6 py-2 text-2xl tracking-wider">{question.plate.bottom}</div>
+            </div>
+          </motion.div>
+        )}
+
         {question.visual && (
           <motion.div
             initial={{ scale: 0.6, rotate: -12, opacity: 0 }}
@@ -120,14 +135,10 @@ export function QuestionCard({
           })}
         </div>
 
-        <AnimatePresence>
-          {answered && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
-            >
+        {/* Povratna informacija i napomena su gradivo — prikazujemo ih odmah,
+            bez animacije visine koja ume da ostane zaledjena. */}
+        {answered && (
+          <div>
               <div className="mt-4 flex items-center gap-2 text-sm font-extrabold">
                 {timedOut ? (
                   <span className="text-[var(--amber)]">⏱ Isteklo vreme — tačan odgovor je označen zeleno.</span>
@@ -144,9 +155,8 @@ export function QuestionCard({
                   {question.note}
                 </div>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </div>
     </motion.div>
   );

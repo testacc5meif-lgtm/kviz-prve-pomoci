@@ -3,7 +3,7 @@ import { getStore } from "@/lib/db";
 import { QUESTIONS } from "@/lib/questions";
 import { ROUND_SIZE, buildRound, normalizeName, playerKey } from "@/lib/quiz";
 import { signRound } from "@/lib/token";
-import type { RoundKind } from "@/lib/types";
+import type { RoundKind, RoundQuestion } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,14 +56,31 @@ export async function POST(req: Request) {
   }
 
   const token = signRound({
-    qs: questions.map((q) => ({ id: q.id, topic: q.topic, correct: q.correct, mode: q.mode })),
+    qs: questions.map((q) => ({
+      id: q.id,
+      topic: q.topic,
+      correct: q.correct,
+      mode: q.mode,
+      order: q.order,
+    })),
     kind,
     playerKey: key,
     issuedAt: Date.now(),
   });
 
   return NextResponse.json({
-    questions,
+    // `order` (redosled mešanja) ide samo u potpisani token, ne i klijentu.
+    questions: questions.map((q): RoundQuestion => ({
+      id: q.id,
+      topic: q.topic,
+      text: q.text,
+      options: q.options,
+      correct: q.correct,
+      mode: q.mode,
+      note: q.note,
+      visual: q.visual,
+      plate: q.plate,
+    })),
     token,
     dbOk,
     progress: {

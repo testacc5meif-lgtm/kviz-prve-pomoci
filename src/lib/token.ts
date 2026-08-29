@@ -10,7 +10,8 @@ import type { GameMode, RoundKind } from "./types";
  */
 
 export type RoundToken = {
-  qs: { id: string; topic: string; correct: number; mode: GameMode }[];
+  /** `order` je permutacija opcija u toj rundi: order[prikazani] = originalni index. */
+  qs: { id: string; topic: string; correct: number; mode: GameMode; order: number[] }[];
   kind: RoundKind;
   playerKey: string;
   issuedAt: number;

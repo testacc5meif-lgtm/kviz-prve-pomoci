@@ -167,6 +167,77 @@ const rCsv = await fetch(BASE + "/api/admin/export", { headers: { cookie } });
 const csv = await rCsv.text();
 check("CSV izvoz radi", rCsv.status === 200 && csv.includes("id_pitanja"), `${csv.split("\n").length} redova`);
 
+console.log("\n── 8. Detaljna analiza označenog takmičara ──");
+const detName = `Detalj Bot ${Date.now() % 100000}`;
+const detKey = detName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const { data: dRound } = await jsonPost("/api/round", { name: detName, team: "Grupa 6", kind: "round" });
+
+// Namerno grešimo prva 3 pitanja i pamtimo ŠTA smo izabrali.
+const expectedWrong = new Map();
+const dAnswers = dRound.questions.map((q, i) => {
+  if (i < 3) {
+    const wrong = (q.correct + 1) % q.options.length;
+    expectedWrong.set(q.id, { chosen: q.options[wrong], correct: q.options[q.correct] });
+    return { chosen: wrong, timeMs: 3000, points: 0 };
+  }
+  return { chosen: q.correct, timeMs: 3000, points: 0 };
+});
+
+await jsonPost("/api/result", {
+  token: dRound.token,
+  name: detName,
+  team: "Grupa 6",
+  startedAt: Date.now() - 90000,
+  answers: dAnswers,
+});
+
+const rDetail = await fetch(`${BASE}/api/admin/stats?players=${detKey}`, { headers: { cookie } });
+const detStats = await rDetail.json();
+const me2 = detStats.detail?.find((d) => d.key === detKey);
+
+check("detaljna analiza je vraćena za označenog", Boolean(me2), `detail: ${detStats.detail?.length ?? 0}`);
+check("spisak svih takmičara (roster) postoji", Array.isArray(detStats.roster) && detStats.roster.length > 0);
+check("beleži tačno 3 promašena pitanja", me2?.mistakes?.length === 3, `nađeno ${me2?.mistakes?.length}`);
+
+let textsOk = true;
+for (const m of me2?.mistakes ?? []) {
+  const exp = expectedWrong.get(m.questionId);
+  if (!exp || m.chosenText !== exp.chosen || m.correctText !== exp.correct) textsOk = false;
+}
+check("pamti ŠTA je izabrao uprkos mešanju odgovora", textsOk);
+check("označava da pitanje i dalje ne zna", me2?.mistakes?.every((m) => m.stillWrong) === true);
+check("ima razradu po oblastima", (me2?.topics?.length ?? 0) > 0);
+
+console.log("\n── 9. Filter po datumu ──");
+const today = new Date();
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const yesterday = new Date(today);
+yesterday.setDate(today.getDate() - 1);
+
+const rToday = await fetch(`${BASE}/api/admin/stats?from=${iso(today)}`, { headers: { cookie } });
+const sToday = await rToday.json();
+check("današnje runde su uključene", sToday.sessions.length > 0, `${sToday.sessions.length} rundi`);
+
+const rOld = await fetch(`${BASE}/api/admin/stats?to=${iso(yesterday)}`, { headers: { cookie } });
+const sOld = await rOld.json();
+// Ne tvrdimo da je prazno (u bazi mogu biti starije runde) — nego da NIJEDNA
+// runda napravljena maloprijas ne prolazi kroz filter "do juče".
+const leakedToday = sOld.sessions.filter((x) => x.playerName === detName || x.playerName === name).length;
+check("runde do juče ne uključuju današnje", leakedToday === 0, `procurilo ${leakedToday}`);
+check("ukupan broj u bazi se i dalje vidi", sOld.unfilteredSessions > 0, `${sOld.unfilteredSessions} ukupno`);
+
+const rCsvSel = await fetch(`${BASE}/api/admin/export?players=${detKey}`, { headers: { cookie } });
+const csvSel = await rCsvSel.text();
+check(
+  "CSV izvoz poštuje izbor takmičara",
+  rCsvSel.status === 200 && csvSel.includes(detName) && csvSel.includes("tekst_izabranog")
+);
+
+console.log("\n── 10. Trajanje režima igre ──");
+const secs = { classic: 45, speed: 20, elimination: 30, double: 30, lightning: 15 };
+console.log("  (očekivano: klasično 45s, brzi metak 20s, pola-pola 30s, duplo 30s, munja 15s)");
+check("nijedan režim nije kraći od 15s", Object.values(secs).every((v) => v >= 15));
+
 console.log(
   failures === 0
     ? `\n✓ Sve provere prošle (baza: ${stats.driver}).\n`

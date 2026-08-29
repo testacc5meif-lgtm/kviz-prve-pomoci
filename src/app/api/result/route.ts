@@ -92,6 +92,11 @@ export async function POST(req: Request) {
       streak = 0;
     }
 
+    // `chosen` je pozicija na ekranu (opcije su izmešane). `chosenOriginal` je index
+    // u originalnom nizu iz questions.ts — bez njega se posle ne zna ŠTA je izabrao.
+    const order = Array.isArray(q.order) ? q.order : null;
+    const chosenOriginal = chosen !== null && order && order[chosen] !== undefined ? order[chosen] : null;
+
     return {
       sessionId,
       playerKey: key,
@@ -99,6 +104,7 @@ export async function POST(req: Request) {
       topic: q.topic as TopicId,
       mode: q.mode,
       chosen,
+      chosenOriginal,
       correctIdx: q.correct,
       isCorrect,
       timeMs,
