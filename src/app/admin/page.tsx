@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { GroupReport } from "@/components/GroupReport";
 import { Bar, Tile, accColor, dt } from "@/components/adminUi";
+import { PROGRAMS } from "@/lib/questions";
 import { formatDuration } from "@/lib/quiz";
 import type { AdminStats, PlayerDetail } from "@/lib/stats";
+import type { ProgramId } from "@/lib/types";
 
 type Tab = "pregled" | "grupa" | "takmicari" | "sesije" | "pitanja" | "analiza";
 
@@ -22,7 +24,9 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "analiza", label: "Analiza", emoji: "🔬" },
 ];
 
-const WATCH_KEY = "ck_pracene_osobe";
+/** Praćene osobe pamtimo odvojeno po programu — to su različiti ljudi. */
+const watchKey = (program: ProgramId) => `ck_pracene_${program}`;
+const PROGRAM_IDS: ProgramId[] = ["omladina", "petlici"];
 
 function isoDay(offsetDays = 0) {
   const d = new Date();
@@ -206,24 +210,25 @@ export default function AdminPage() {
   const [to, setTo] = useState("");
   const [watched, setWatched] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [program, setProgram] = useState<ProgramId>("omladina");
 
   // Izbor praćenih osoba pamtimo u pregledaču — da se ne čekira svaki put iznova.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(WATCH_KEY);
-      if (raw) setWatched(JSON.parse(raw) as string[]);
+      const raw = localStorage.getItem(watchKey(program));
+      setWatched(raw ? (JSON.parse(raw) as string[]) : []);
     } catch {
       /* privatni prozor */
     }
-  }, []);
+  }, [program]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   function toggleWatch(key: string) {
     setWatched((prev) => {
       const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
       try {
-        localStorage.setItem(WATCH_KEY, JSON.stringify(next));
+        localStorage.setItem(watchKey(program), JSON.stringify(next));
       } catch {
         /* nema veze */
       }
@@ -233,15 +238,16 @@ export default function AdminPage() {
 
   const query = useCallback(() => {
     const p = new URLSearchParams();
+    p.set("program", program);
     if (from) p.set("from", from);
     if (to) p.set("to", to);
     if (watched.length) p.set("players", watched.join(","));
     return p.toString();
-  }, [from, to, watched]);
+  }, [from, to, watched, program]);
 
   const fetchStats = useCallback(async (): Promise<boolean> => {
     const qs = query();
-    const res = await fetch(`/api/admin/stats${qs ? `?${qs}` : ""}`, { cache: "no-store" });
+    const res = await fetch(`/api/admin/stats?${qs}`, { cache: "no-store" });
     if (res.status === 401) return false;
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error ?? "Greška pri čitanju baze.");
@@ -361,14 +367,16 @@ export default function AdminPage() {
     <main key="dashboard" className="mx-auto w-full max-w-6xl px-4 py-7 sm:px-6">
       <header className="mb-5 flex flex-wrap items-center gap-3">
         <div className="mr-auto">
-          <h1 className="text-2xl font-extrabold text-white">Rezultati kviza</h1>
+          <h1 className="text-2xl font-extrabold text-white">
+            Rezultati — {PROGRAMS[program].emoji} {PROGRAMS[program].label}
+          </h1>
           <p className="text-xs text-[var(--muted)]">
             Baza: <span className="font-bold">{stats.driver === "postgres" ? "Postgres (Neon)" : "lokalni fajl"}</span>
             {stats.driver === "file" && " — na Vercelu poveži Postgres bazu, inače se rezultati ne čuvaju trajno"}
           </p>
         </div>
         <a
-          href={`/api/admin/export${qs ? `?${qs}` : ""}`}
+          href={`/api/admin/export?${qs}`}
           className="glass rounded-lg px-3.5 py-2 text-sm font-bold text-[var(--muted)] transition hover:text-white"
         >
           ⬇ CSV izvoz
@@ -383,6 +391,34 @@ export default function AdminPage() {
           Odjava
         </button>
       </header>
+
+      {/* ── izbor programa ── */}
+      <div className="glass mb-3 flex flex-wrap items-center gap-2 rounded-xl p-3">
+        <span className="mr-1 text-[11px] font-bold uppercase tracking-wider text-[var(--faint)]">Kviz</span>
+        {PROGRAM_IDS.map((id) => {
+          const active = program === id;
+          return (
+            <button
+              key={id}
+              onClick={() => {
+                setProgram(id);
+                setTab("pregled");
+              }}
+              className="rounded-lg px-3 py-1.5 text-xs font-bold transition"
+              style={
+                active
+                  ? { background: PROGRAMS[id].color, color: "#fff" }
+                  : { background: "rgba(255,255,255,0.08)", color: "var(--muted)" }
+              }
+            >
+              {PROGRAMS[id].emoji} {PROGRAMS[id].label}
+            </button>
+          );
+        })}
+        <span className="ml-auto text-[11px] text-[var(--faint)]">
+          Svaki kviz ima svoju bazu pitanja i svoju istoriju.
+        </span>
+      </div>
 
       {/* ── filter po periodu ── */}
       <div className="glass mb-5 flex flex-wrap items-center gap-2 rounded-xl p-3">
@@ -591,7 +627,7 @@ export default function AdminPage() {
                   onClick={() => {
                     setWatched([]);
                     try {
-                      localStorage.removeItem(WATCH_KEY);
+                      localStorage.removeItem(watchKey(program));
                     } catch {
                       /* nema veze */
                     }

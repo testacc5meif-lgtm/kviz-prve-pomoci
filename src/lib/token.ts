@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { GameMode, RoundKind } from "./types";
+import type { GameMode, ProgramId, RoundKind } from "./types";
 
 /**
  * Runda se klijentu šalje zajedno sa potpisanim tokenom.
@@ -13,6 +13,7 @@ export type RoundToken = {
   /** `order` je permutacija opcija u toj rundi: order[prikazani] = originalni index. */
   qs: { id: string; topic: string; correct: number; mode: GameMode; order: number[] }[];
   kind: RoundKind;
+  program: ProgramId;
   playerKey: string;
   issuedAt: number;
 };

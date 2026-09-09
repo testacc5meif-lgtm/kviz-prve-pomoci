@@ -1,4 +1,5 @@
-import type { Question, TopicId } from "./types";
+import { PETLICI, type QuestionSeed } from "./questions-petlici";
+import type { ProgramId, Question, TopicId } from "./types";
 
 export const TOPICS: Record<TopicId, { label: string; short: string; emoji: string; color: string }> = {
   pristup: { label: "Pristup mestu nesreće i bezbednost", short: "Bezbednost", emoji: "🚧", color: "#f59e0b" },
@@ -9,6 +10,32 @@ export const TOPICS: Record<TopicId, { label: string; short: string; emoji: stri
   povrede: { label: "Povrede, prelomi i opekotine", short: "Povrede", emoji: "🦴", color: "#34d399" },
   stanja: { label: "Iznenadna oboljenja i stanja", short: "Stanja", emoji: "⚡", color: "#facc15" },
   trovanja: { label: "Trovanja, ujedi i ubodi", short: "Trovanja", emoji: "🐍", color: "#22d3ee" },
+  // ─── oblasti za petliće ───
+  humanost: { label: "Humanost", short: "Humanost", emoji: "🤝", color: "#f472b6" },
+  istorijat: { label: "Istorijat Crvenog krsta", short: "Istorijat", emoji: "📜", color: "#c084fc" },
+  krv: { label: "Dobrovoljno davalaštvo krvi", short: "Davalaštvo krvi", emoji: "💉", color: "#f87171" },
+  osnove: { label: "Prva pomoć — osnove", short: "Prva pomoć", emoji: "🚑", color: "#60a5fa" },
+};
+
+/** Opis programa: dva odvojena kviza, svaki sa svojom bazom i svojom istorijom. */
+export const PROGRAMS: Record<
+  ProgramId,
+  { label: string; short: string; emoji: string; opis: string; color: string }
+> = {
+  omladina: {
+    label: "Omladina i podmladak",
+    short: "Omladina",
+    emoji: "🎽",
+    opis: "Takmičarski test prve pomoći — pitanja sa zvaničnih testova Crvenog krsta.",
+    color: "#ef2b3d",
+  },
+  petlici: {
+    label: "Petlići (1–4. razred)",
+    short: "Petlići",
+    emoji: "🐣",
+    opis: "Šta znaš o Crvenom krstu — humanost, istorijat, davalaštvo krvi i osnove prve pomoći. Bez žurbe.",
+    color: "#38bdf8",
+  },
 };
 
 /**
@@ -25,7 +52,11 @@ export const TOPICS: Record<TopicId, { label: string; short: string; emoji: stri
  *   3. Ako pitanje već postoji u drugoj formulaciji — daj im isti `group`.
  *   4. NIKADA ne menjaj postojeći `id` — na njega je vezana istorija u bazi.
  */
-export const QUESTIONS: Question[] = [
+/**
+ * Pitanja za OMLADINU I PODMLADAK.
+ * Pitanja za petliće su u zasebnom fajlu `questions-petlici.ts`.
+ */
+const OMLADINA: QuestionSeed[] = [
   // ─────────────────────────── VERZIJA A ───────────────────────────
   {
     id: "a01",
@@ -925,6 +956,22 @@ export const QUESTIONS: Question[] = [
   },
 ];
 
+/** Sva pitanja, sa označenim programom. */
+export const QUESTIONS: Question[] = [
+  ...OMLADINA.map((q): Question => ({ ...q, program: "omladina" })),
+  ...PETLICI.map((q): Question => ({ ...q, program: "petlici" })),
+];
+
 export const QUESTION_BY_ID = new Map(QUESTIONS.map((q) => [q.id, q]));
+
+/** Koliko pitanja ima svaki program — koristi se za „savladano X od Y". */
+export const BANK_SIZE: Record<ProgramId, number> = {
+  omladina: OMLADINA.length,
+  petlici: PETLICI.length,
+};
+
+export function questionsOf(program: ProgramId): Question[] {
+  return QUESTIONS.filter((q) => q.program === program);
+}
 
 export const TOTAL_QUESTIONS = QUESTIONS.length;

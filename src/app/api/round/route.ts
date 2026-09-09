@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/db";
-import { QUESTIONS } from "@/lib/questions";
-import { ROUND_SIZE, buildRound, normalizeName, playerKey } from "@/lib/quiz";
+import { BANK_SIZE } from "@/lib/questions";
+import { PROGRAM_RULES, buildRound, normalizeName, playerKey } from "@/lib/quiz";
 import { signRound } from "@/lib/token";
-import type { RoundKind, RoundQuestion } from "@/lib/types";
+import type { ProgramId, RoundKind, RoundQuestion } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  let body: { name?: unknown; team?: unknown; kind?: unknown; only?: unknown };
+  let body: { name?: unknown; team?: unknown; kind?: unknown; only?: unknown; program?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -21,12 +21,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Ime mora imati bar 2 slova." }, { status: 400 });
   }
 
+  const program: ProgramId = body.program === "petlici" ? "petlici" : "omladina";
+  const rules = PROGRAM_RULES[program];
   const kind: RoundKind = body.kind === "retry" ? "retry" : "round";
   const key = playerKey(name);
 
   const only =
     kind === "retry" && Array.isArray(body.only)
-      ? body.only.filter((id): id is string => typeof id === "string").slice(0, ROUND_SIZE)
+      ? body.only.filter((id): id is string => typeof id === "string").slice(0, rules.roundSize)
       : undefined;
 
   if (kind === "retry" && (!only || only.length === 0)) {
@@ -37,14 +39,15 @@ export async function POST(req: Request) {
   let progress = { mastered: [] as string[], weak: [] as string[], roundsPlayed: 0 };
   let dbOk = true;
   try {
-    progress = await getStore().getProgress(key);
+    progress = await getStore().getProgress(key, program);
   } catch (err) {
     dbOk = false;
     console.error("[round] Ne mogu da pročitam napredak:", err);
   }
 
   const questions = buildRound({
-    count: only ? only.length : ROUND_SIZE,
+    program,
+    count: only ? only.length : rules.roundSize,
     mastered: new Set(progress.mastered),
     weak: new Set(progress.weak),
     seed: (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0,
@@ -64,29 +67,35 @@ export async function POST(req: Request) {
       order: q.order,
     })),
     kind,
+    program,
     playerKey: key,
     issuedAt: Date.now(),
   });
 
   return NextResponse.json({
     // `order` (redosled mešanja) ide samo u potpisani token, ne i klijentu.
-    questions: questions.map((q): RoundQuestion => ({
-      id: q.id,
-      topic: q.topic,
-      text: q.text,
-      options: q.options,
-      correct: q.correct,
-      mode: q.mode,
-      note: q.note,
-      visual: q.visual,
-      plate: q.plate,
-    })),
+    questions: questions.map(
+      (q): RoundQuestion => ({
+        id: q.id,
+        program: q.program,
+        topic: q.topic,
+        text: q.text,
+        options: q.options,
+        correct: q.correct,
+        mode: q.mode,
+        note: q.note,
+        visual: q.visual,
+        plate: q.plate,
+      })
+    ),
     token,
     dbOk,
+    program,
+    timed: rules.timed,
     progress: {
       mastered: progress.mastered.length,
       weak: progress.weak.length,
-      total: QUESTIONS.length,
+      total: BANK_SIZE[program],
       roundsPlayed: progress.roundsPlayed,
     },
   });

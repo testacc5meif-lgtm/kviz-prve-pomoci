@@ -1,14 +1,30 @@
-# Kviz prve pomoći — Crveni krst Mionica
+# Kviz Crvenog krsta — Mionica
 
-Interaktivni trening kviz za takmičare i volontere u pružanju prve pomoći.
+Interaktivni trening kviz sa **dva odvojena programa**. Na ulazu se bira koji se radi.
 
-- **90 pitanja** u bazi, **25 nasumičnih po rundi**
+| | 🐣 Petlići (1–4. razred) | 🎽 Omladina i podmladak |
+|---|---|---|
+| Gradivo | Šta znaš o Crvenom krstu — humanost, istorijat, davalaštvo krvi, osnove prve pomoći | Takmičarski test prve pomoći |
+| Pitanja u bazi | 42 | 90 |
+| Po rundi | 15 | 25 |
+| Vreme | **sat odbrojava, ali pitanje ne ističe** | svako pitanje ima svoje vreme |
+| Režimi igre | Klasično, Pola-pola | svih 5 režima |
+
+Zajedničko za oba:
+
 - **Ponuđeni odgovori se mešaju** svaki put — deca ne mogu da pamte „drugi odgovor je tačan"
-- **5 režima igre** (klasično, brzi metak 10s, pola-pola, duplo ili ništa, munja 8s)
 - **Praćenje napretka po igraču** — sledeća runda donosi pitanja koja još nisu savladana
 - **Popravni krug** — na kraju runde možeš odmah ponoviti samo ono što nisi znao
-- **Admin panel** sa istorijom svih rezultata, filtriranjem po danu i detaljnom
-  analizom za takmičare koje sam označiš (lozinka)
+- **Odvojena istorija** — isti takmičar u drugom programu kreće od nule
+
+---
+
+## Zašto petlići nemaju istek vremena
+
+Prvaci i drugaci sporo čitaju. Sat se i dalje vidi i odbrojava od 90 sekundi (da bude
+igra), ali kad dođe do nule **ništa se ne dešava** — prsten pređe u mirnu plavu boju,
+pokaže smajli i pitanje čeka koliko god treba. Nema kaznenih poena, nema režima
+„Duplo ili ništa" ni „Munja". Brži odgovor i dalje nosi mali bonus.
 
 ---
 
@@ -33,14 +49,14 @@ Da obrišeš lokalne rezultate, samo obriši taj fajl.
 npm run proveri
 ```
 
-Proverava bazu pitanja (duplikati, indeksi tačnih odgovora, prazne opcije).
+Proverava **obe** baze pitanja (duplirani ID-jevi, indeksi tačnih odgovora, prazne opcije).
 **Pokreni ovo svaki put kad dodaš nova pitanja.**
 
 ```bash
 node scripts/test-api.mjs
 ```
 
-Prolazi kroz ceo lanac — rundu, bodovanje, upis i admin. Zahteva pokrenut `npm run dev`.
+Prolazi kroz ceo lanac — obe runde, bodovanje, upis i admin. Zahteva pokrenut `npm run dev`.
 
 ---
 
@@ -82,6 +98,9 @@ Svaki `git push` automatski objavljuje novu verziju.
 
 Na `/admin`, lozinka: **`CrveniKrstMionica18`** (ili ono što staviš u `ADMIN_PASSWORD`).
 
+Gore stoji **prekidač kviza** — `🎽 Omladina` / `🐣 Petlići`. Sve ispod se odnosi
+samo na izabrani kviz; dve baze pitanja se nikada ne mešaju u istoj statistici.
+
 Šta se vidi:
 
 - **Pregled** — broj takmičara, rundi, prosečan rezultat, rang lista
@@ -96,35 +115,42 @@ Na `/admin`, lozinka: **`CrveniKrstMionica18`** (ili ono što staviš u `ADMIN_P
   otvaraju na klik — svako pitanje koje je promašio, šta je izabrao, tačan odgovor,
   koliko puta ga je promašio, razrada po oblastima i spisak svih njegovih rundi.
 
-  Izbor praćenih osoba se pamti na tvom računaru.
-- **Svi takmičari** — tabela sa čekiranjem za praćenje; broj rundi, najbolji i
-  prosečan rezultat, tačnost, savladano od 90, najduži niz, prosečno vreme
+  Izbor praćenih osoba pamti se odvojeno za svaki kviz.
+- **Svi takmičari** — tabela sa čekiranjem za praćenje
 - **Sve runde** — svaka odigrana runda pojedinačno
 - **Pitanja** — sortirano od najtežih ka najlakšim, sa procentom tačnosti po pitanju
 - **Analiza** — uspeh po oblastima, po režimima igre, aktivnost po danima
   (klik na stubić prikazuje samo taj dan)
 - **CSV izvoz** — svaki pojedinačni odgovor sa tekstom izabranog odgovora; poštuje
-  izabrani period i označene takmičare
+  izabrani kviz, period i označene takmičare
 
 ### Filter po periodu
 
-Gore stoji traka **Period**: `Sve vreme` / `Danas` / `7 dana` / `30 dana`, plus polja
+Traka **Period**: `Sve vreme` / `Danas` / `7 dana` / `30 dana`, plus polja
 **Od** i **Do** za bilo koji raspon. Dani se računaju po lokalnom vremenu.
 
 ---
 
 ## Dodavanje novih pitanja
 
-Sva pitanja su u [`src/lib/questions.ts`](src/lib/questions.ts). Dodaj na kraj niza:
+Dve odvojene baze:
+
+| Program | Fajl | Prefiks ID-ja |
+|---|---|---|
+| Omladina i podmladak | [`src/lib/questions.ts`](src/lib/questions.ts), niz `OMLADINA` | `a`, `b`, `c`, `d`, `e` |
+| Petlići | [`src/lib/questions-petlici.ts`](src/lib/questions-petlici.ts), niz `PETLICI` | `p` |
+
+Dodaj objekat na kraj odgovarajućeg niza:
 
 ```ts
 {
-  id: "e01",                    // NOV, jedinstven — nikad ne menjaj postojeće
-  topic: "krvarenje",           // pristup | pregled | kpr | disajni |
-                                // krvarenje | povrede | stanja | trovanja
+  id: "p43",                    // NOV, jedinstven u OBE baze
+  topic: "istorijat",           // petlići: humanost | istorijat | krv | osnove
+                                // omladina: pristup | pregled | kpr | disajni |
+                                //           krvarenje | povrede | stanja | trovanja
   text: "Tekst pitanja?",
-  options: ["Prvi", "Drugi", "Treći"],
-  correct: 2,                   // index tačnog: 0, 1 ili 2
+  options: ["Prvi", "Drugi", "Treći"],   // može i 4 ili 5 ponuđenih
+  correct: 2,                   // index tačnog: 0, 1, 2…
   group: "neka-grupa",          // opciono — vidi dole
   note: "Objašnjenje...",       // opciono — prikazuje se POSLE odgovora
 },
@@ -138,7 +164,7 @@ Za pitanje sa narandžastom ADR tablicom (transport opasnih materija) dodaj i:
 
 **Važno o `group`:** ako novo pitanje već postoji u drugoj formulaciji (isto gradivo,
 drugačiji ponuđeni odgovori), daj obama isti `group`. Kviz tada nikada neće staviti
-oba u istu rundu. U bazi trenutno ima 20 takvih grupa.
+oba u istu rundu. U omladinskoj bazi trenutno ima 20 takvih grupa.
 
 **Nikad ne menjaj postojeći `id`** — na njega je vezana istorija u bazi.
 
@@ -146,10 +172,11 @@ Posle dodavanja pokreni `npm run proveri`.
 
 ---
 
-## Sporna pitanja — rešeno
+## Napomene uz baze pitanja
 
-Skenirane verzije testa su na pet mesta bile protivrečne ili nejasno označene.
-Tačni odgovori su potvrđeni i napomene su uklonjene:
+### Omladina — sporna pitanja (rešeno)
+
+Skenirane verzije testa bile su na pet mesta protivrečne. Tačni odgovori su potvrđeni:
 
 | ID | Tačan odgovor |
 |---|---|
@@ -159,21 +186,31 @@ Tačni odgovori su potvrđeni i napomene su uklonjene:
 | `d19` | Gornji desni ugao grudnog koša ispod ključne kosti i pored leve bradavice, s bočne strane |
 | `d38b` | Polusedeći sa savijenim nogama |
 
-U bazi je ostalo 7 napomena, ali su sve **objašnjenja gradiva** (npr. šta znači RICE,
-kako se računa pravilo devetke) — prikazuju se takmičaru posle odgovora kao pomoć u učenju.
+### Petlići — prilagođena pitanja
+
+U originalnom dokumentu neka pitanja nisu bila sa ponuđenim odgovorima, pa su
+prilagođena formatu kviza. **Tačan odgovor je iz dokumenta, netačni su dodati:**
+
+| ID | Šta je bilo u originalu |
+|---|---|
+| `p06` | dopunjavanje („Anri Dinan") |
+| `p34` | zaokruživanje više predmeta iz kutije prve pomoći |
+| `p39`–`p42` | jedna rečenica sa prazninama za dopunu |
+
+**Nije preneto:** zadatak spajanja znakova sa brojevima (strana 68) — traži slike
+znakova kojih nema u dokumentu.
+
+---
 
 ## Kako radi bodovanje
 
-| Režim | Vreme | Osnovni bodovi | Posebno |
-|---|---|---|---|
-| 📋 Klasično | 45s | 100 | — |
-| ⚡ Brzi metak | 20s | 150 | — |
-| ✂️ Pola-pola | 30s | 140 | posle 12s nestaje jedan netačan, bodovi se prepolove |
-| 🎲 Duplo ili ništa | 30s | 100 | tačno = ×2, netačno = −100 |
-| 🔥 Munja | 15s | 200 | poslednja pitanja u rundi |
-
-Vremena su namerno produžena — na 10 sekundi se duže pitanje sa tri ponuđena
-odgovora nije stizalo ni pročitati.
+| Režim | Omladina | Petlići | Osnovni bodovi | Posebno |
+|---|---|---|---|---|
+| 📋 Klasično | 45s | bez isteka | 100 | — |
+| ⚡ Brzi metak | 20s | — | 150 | — |
+| ✂️ Pola-pola | 30s | bez isteka | 140 | posle 12s (petlići 25s) nestaje jedan netačan |
+| 🎲 Duplo ili ništa | 30s | — | 100 | tačno = ×2, netačno = −100 |
+| 🔥 Munja | 15s | — | 200 | poslednja pitanja u rundi |
 
 Na to ide **bonus za brzinu** (do +50% osnovnih bodova) i **množilac za niz**
 tačnih odgovora: 3+ → ×1.2, 5+ → ×1.5, 8+ → ×2.
@@ -187,7 +224,7 @@ Bodove računa **server**, iz potpisane runde — poslati rezultat se ne uzima n
 ```
 src/
   app/
-    page.tsx              početna + unos imena
+    page.tsx              izbor kviza + unos imena
     kviz/page.tsx         tok kviza
     admin/page.tsx        istorija i statistika
     api/
@@ -196,12 +233,15 @@ src/
       admin/              prijava, statistika, CSV
   components/
     QuestionCard.tsx      kartica pitanja
-    TimerRing.tsx         prsten tajmera
+    TimerRing.tsx         prsten tajmera (mirni režim za petliće)
     ResultScreen.tsx      ekran rezultata
-  lib/
-    questions.ts          BAZA PITANJA
+    GroupReport.tsx       zajednički izveštaj označene grupe
+    adminUi.tsx           sitni delovi admin panela
+  lib:
+    questions.ts          baza za omladinu + spajanje obe baze
+    questions-petlici.ts  baza za petliće
+    quiz.ts               pravila programa, mešanje, režimi, bodovanje
     stats.ts              statistika + detaljna analiza po takmičaru
-    quiz.ts               biranje pitanja, mešanje, režimi, bodovanje
     db.ts                 Postgres (Vercel) ili lokalni fajl
     token.ts              potpisivanje runde i admin sesije
 ```

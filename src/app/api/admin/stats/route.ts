@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getStore } from "@/lib/db";
 import { buildStats } from "@/lib/stats";
 import { ADMIN_COOKIE, verifyAdminCookie } from "@/lib/token";
+import type { ProgramId } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const from = dayBoundary(url.searchParams.get("from"), false);
   const to = dayBoundary(url.searchParams.get("to"), true);
+  // Admin uvek gleda JEDAN program — dve baze pitanja se ne mešaju u istoj statistici.
+  const program: ProgramId = url.searchParams.get("program") === "petlici" ? "petlici" : "omladina";
   const detailFor = (url.searchParams.get("players") ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -37,7 +40,7 @@ export async function GET(req: Request) {
     // Spisak svih takmičara ostaje NEfiltriran — da lista za čekiranje
     // ne nestane samo zato što neko nije igrao u izabranom periodu.
     const rosterMap = new Map<string, { key: string; name: string; team: string }>();
-    for (const s of all.sessions) {
+    for (const s of all.sessions.filter((x) => x.program === program)) {
       const existing = rosterMap.get(s.playerKey);
       if (!existing || s.team) {
         rosterMap.set(s.playerKey, { key: s.playerKey, name: s.playerName, team: s.team });
@@ -46,19 +49,19 @@ export async function GET(req: Request) {
     const roster = [...rosterMap.values()].sort((a, b) => a.name.localeCompare(b.name, "sr"));
 
     const sessions = all.sessions.filter(
-      (s) => (!from || s.finishedAt >= from) && (!to || s.finishedAt <= to)
+      (s) => s.program === program && (!from || s.finishedAt >= from) && (!to || s.finishedAt <= to)
     );
     // Odgovore vezujemo za zadržane sesije — tako se runda nikad ne preseče na pola.
     const keptIds = new Set(sessions.map((s) => s.id));
     const answers = all.answers.filter((a) => keptIds.has(a.sessionId));
 
-    const stats = buildStats(sessions, answers, store.driver, detailFor);
+    const stats = buildStats(sessions, answers, store.driver, detailFor, program);
 
     return NextResponse.json({
       ...stats,
       roster,
       filter: { from: url.searchParams.get("from"), to: url.searchParams.get("to"), players: detailFor },
-      unfilteredSessions: all.sessions.length,
+      unfilteredSessions: all.sessions.filter((x) => x.program === program).length,
     });
   } catch (err) {
     console.error("[admin/stats] Čitanje baze nije uspelo:", err);

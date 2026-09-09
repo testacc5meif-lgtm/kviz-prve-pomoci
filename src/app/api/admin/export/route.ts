@@ -22,6 +22,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const from = dayBoundary(url.searchParams.get("from"), false);
   const to = dayBoundary(url.searchParams.get("to"), true);
+  const program = url.searchParams.get("program") === "petlici" ? "petlici" : "omladina";
   const only = new Set(
     (url.searchParams.get("players") ?? "")
       .split(",")
@@ -37,6 +38,7 @@ export async function GET(req: Request) {
     // Izvoz poštuje iste filtere kao i ekran — da se ne razilaze.
     const sessions = all.sessions.filter(
       (s) =>
+        s.program === program &&
         (!from || s.finishedAt >= from) &&
         (!to || s.finishedAt <= to) &&
         (only.size === 0 || only.has(s.playerKey))
@@ -45,7 +47,7 @@ export async function GET(req: Request) {
     const answers = all.answers.filter((a) => keptIds.has(a.sessionId));
 
     const stamp = new Date().toISOString().slice(0, 10);
-    const suffix = only.size ? "-izabrani" : "";
+    const suffix = `-${program}${only.size ? "-izabrani" : ""}`;
 
     return new NextResponse(answersToCsv(sessions, answers), {
       headers: {

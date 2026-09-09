@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { RoundKind } from "./types";
+import type { ProgramId, RoundKind } from "./types";
 
 /**
  * SKLADIŠTE REZULTATA
@@ -21,6 +21,7 @@ import type { RoundKind } from "./types";
 
 export type StoredSession = {
   id: string;
+  program: ProgramId;
   playerKey: string;
   playerName: string;
   team: string;
@@ -38,6 +39,7 @@ export type StoredSession = {
 
 export type StoredAnswer = {
   sessionId: string;
+  program: ProgramId;
   playerKey: string;
   questionId: string;
   topic: string;
@@ -57,7 +59,10 @@ export type Store = {
   driver: "postgres" | "file";
   init(): Promise<void>;
   saveSession(session: StoredSession, answers: StoredAnswer[]): Promise<void>;
-  getProgress(playerKey: string): Promise<{ mastered: string[]; weak: string[]; roundsPlayed: number }>;
+  getProgress(
+    playerKey: string,
+    program: ProgramId
+  ): Promise<{ mastered: string[]; weak: string[]; roundsPlayed: number }>;
   getAll(): Promise<{ sessions: StoredSession[]; answers: StoredAnswer[] }>;
 };
 
@@ -94,6 +99,7 @@ function createPostgresStore(url: string): Store {
         await sql`
           CREATE TABLE IF NOT EXISTS quiz_sessions (
             id            TEXT PRIMARY KEY,
+            program       TEXT NOT NULL DEFAULT 'omladina',
             player_key    TEXT NOT NULL,
             player_name   TEXT NOT NULL,
             team          TEXT NOT NULL DEFAULT '',
@@ -112,6 +118,7 @@ function createPostgresStore(url: string): Store {
           CREATE TABLE IF NOT EXISTS quiz_answers (
             id            BIGSERIAL PRIMARY KEY,
             session_id    TEXT NOT NULL,
+            program       TEXT NOT NULL DEFAULT 'omladina',
             player_key    TEXT NOT NULL,
             question_id   TEXT NOT NULL,
             topic         TEXT NOT NULL,
@@ -126,6 +133,9 @@ function createPostgresStore(url: string): Store {
           )`;
         // Za baze napravljene pre nego što je kolona dodata.
         await sql`ALTER TABLE quiz_answers ADD COLUMN IF NOT EXISTS chosen_original INTEGER`;
+        // Za baze napravljene pre nego što su uvedena dva programa.
+        await sql`ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS program TEXT NOT NULL DEFAULT 'omladina'`;
+        await sql`ALTER TABLE quiz_answers  ADD COLUMN IF NOT EXISTS program TEXT NOT NULL DEFAULT 'omladina'`;
         await sql`CREATE INDEX IF NOT EXISTS quiz_answers_player ON quiz_answers (player_key)`;
         await sql`CREATE INDEX IF NOT EXISTS quiz_answers_created ON quiz_answers (created_at)`;
         await sql`CREATE INDEX IF NOT EXISTS quiz_sessions_finished ON quiz_sessions (finished_at)`;
@@ -149,10 +159,10 @@ function createPostgresStore(url: string): Store {
       const sql = await getSql();
       await sql`
         INSERT INTO quiz_sessions
-          (id, player_key, player_name, team, kind, total, correct, score, max_score,
+          (id, program, player_key, player_name, team, kind, total, correct, score, max_score,
            percent, duration_ms, best_streak, started_at, finished_at)
         VALUES
-          (${s.id}, ${s.playerKey}, ${s.playerName}, ${s.team}, ${s.kind}, ${s.total},
+          (${s.id}, ${s.program}, ${s.playerKey}, ${s.playerName}, ${s.team}, ${s.kind}, ${s.total},
            ${s.correct}, ${s.score}, ${s.maxScore}, ${s.percent}, ${s.durationMs},
            ${s.bestStreak}, ${s.startedAt}, ${s.finishedAt})
         ON CONFLICT (id) DO NOTHING`;
@@ -160,26 +170,26 @@ function createPostgresStore(url: string): Store {
       for (const a of answers) {
         await sql`
           INSERT INTO quiz_answers
-            (session_id, player_key, question_id, topic, mode, chosen, chosen_original,
+            (session_id, program, player_key, question_id, topic, mode, chosen, chosen_original,
              correct_idx, is_correct, time_ms, points, created_at)
           VALUES
-            (${a.sessionId}, ${a.playerKey}, ${a.questionId}, ${a.topic}, ${a.mode},
+            (${a.sessionId}, ${a.program}, ${a.playerKey}, ${a.questionId}, ${a.topic}, ${a.mode},
              ${a.chosen}, ${a.chosenOriginal}, ${a.correctIdx}, ${a.isCorrect},
              ${a.timeMs}, ${a.points}, ${a.createdAt})`;
       }
     },
 
-    async getProgress(key) {
+    async getProgress(key, program) {
       await init();
       const sql = await getSql();
       // Poslednji odgovor po pitanju određuje da li je pitanje savladano.
       const rows = await sql<{ question_id: string; is_correct: boolean }>`
         SELECT DISTINCT ON (question_id) question_id, is_correct
         FROM quiz_answers
-        WHERE player_key = ${key}
+        WHERE player_key = ${key} AND program = ${program}
         ORDER BY question_id, created_at DESC, id DESC`;
       const counted = await sql<{ n: string }>`
-        SELECT COUNT(*)::text AS n FROM quiz_sessions WHERE player_key = ${key} AND kind = 'round'`;
+        SELECT COUNT(*)::text AS n FROM quiz_sessions WHERE player_key = ${key} AND program = ${program} AND kind = 'round'`;
 
       return {
         mastered: rows.filter((r) => r.is_correct).map((r) => r.question_id),
@@ -200,6 +210,7 @@ function createPostgresStore(url: string): Store {
         sessions: sessions.map(
           (r): StoredSession => ({
             id: String(r.id),
+            program: (r.program as ProgramId) ?? "omladina",
             playerKey: String(r.player_key),
             playerName: String(r.player_name),
             team: String(r.team ?? ""),
@@ -218,6 +229,7 @@ function createPostgresStore(url: string): Store {
         answers: answers.map(
           (r): StoredAnswer => ({
             sessionId: String(r.session_id),
+            program: (r.program as ProgramId) ?? "omladina",
             playerKey: String(r.player_key),
             questionId: String(r.question_id),
             topic: String(r.topic),
@@ -274,16 +286,18 @@ function createFileStore(): Store {
       await writeChain;
     },
 
-    async getProgress(key) {
+    async getProgress(key, program) {
       const { sessions, answers } = await readFileStore();
       const last = new Map<string, boolean>();
-      for (const a of answers.filter((a) => a.playerKey === key)) {
+      for (const a of answers.filter((a) => a.playerKey === key && a.program === program)) {
         last.set(a.questionId, a.isCorrect); // niz je hronološki, poslednji pobeđuje
       }
       return {
         mastered: [...last].filter(([, ok]) => ok).map(([id]) => id),
         weak: [...last].filter(([, ok]) => !ok).map(([id]) => id),
-        roundsPlayed: sessions.filter((s) => s.playerKey === key && s.kind === "round").length,
+        roundsPlayed: sessions.filter(
+          (s) => s.playerKey === key && s.program === program && s.kind === "round"
+        ).length,
       };
     },
 

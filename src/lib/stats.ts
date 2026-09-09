@@ -1,7 +1,7 @@
 import type { StoredAnswer, StoredSession } from "./db";
-import { QUESTION_BY_ID, QUESTIONS, TOPICS } from "./questions";
+import { BANK_SIZE, QUESTION_BY_ID, TOPICS, questionsOf } from "./questions";
 import { MODE_CONFIG } from "./quiz";
-import type { GameMode, TopicId } from "./types";
+import type { GameMode, ProgramId, TopicId } from "./types";
 
 export type PlayerStat = {
   key: string;
@@ -94,6 +94,7 @@ export type PlayerDetail = {
 
 export type AdminStats = {
   driver: string;
+  program: ProgramId;
   detail: PlayerDetail[];
   generatedAt: string;
   totals: {
@@ -174,7 +175,8 @@ function modeStatsFrom(answers: StoredAnswer[]): ModeStat[] {
 function buildPlayerDetail(
   key: string,
   sessions: StoredSession[],
-  answers: StoredAnswer[]
+  answers: StoredAnswer[],
+  bank: number
 ): PlayerDetail | null {
   const mine = answers.filter((a) => a.playerKey === key);
   const mySessions = sessions.filter((s) => s.playerKey === key);
@@ -229,8 +231,8 @@ function buildPlayerDetail(
     sessions: mySessions,
     mastered,
     weak,
-    unseen: QUESTIONS.length - last.size,
-    coverage: pct(mastered, QUESTIONS.length),
+    unseen: Math.max(0, bank - last.size),
+    coverage: pct(mastered, bank),
   };
 }
 
@@ -238,8 +240,11 @@ export function buildStats(
   sessions: StoredSession[],
   answers: StoredAnswer[],
   driver: string,
-  detailFor: string[] = []
+  detailFor: string[] = [],
+  program: ProgramId = "omladina"
 ): AdminStats {
+  const bank = BANK_SIZE[program];
+  const bankQuestions = questionsOf(program);
   const byPlayer = new Map<string, PlayerStat>();
   const answersByPlayer = new Map<string, StoredAnswer[]>();
 
@@ -309,7 +314,7 @@ export function buildStats(
     for (const a of mine) lastByQuestion.set(a.questionId, a.isCorrect);
     p.mastered = [...lastByQuestion.values()].filter(Boolean).length;
     p.weak = [...lastByQuestion.values()].filter((ok) => !ok).length;
-    p.coverage = pct(p.mastered, QUESTIONS.length);
+    p.coverage = pct(p.mastered, bank);
   }
 
   const qAgg = new Map<string, { asked: number; correct: number; time: number; timeouts: number }>();
@@ -336,7 +341,7 @@ export function buildStats(
     mAgg.set(a.mode, m);
   }
 
-  const questions: QuestionStat[] = QUESTIONS.map((q) => {
+  const questions: QuestionStat[] = bankQuestions.map((q) => {
     const agg = qAgg.get(q.id) ?? { asked: 0, correct: 0, time: 0, timeouts: 0 };
     return {
       id: q.id,
@@ -392,8 +397,9 @@ export function buildStats(
 
   return {
     driver,
+    program,
     detail: detailFor
-      .map((key) => buildPlayerDetail(key, sessions, answers))
+      .map((key) => buildPlayerDetail(key, sessions, answers, bank))
       .filter((d): d is PlayerDetail => d !== null),
     generatedAt: new Date().toISOString(),
     totals: {
@@ -409,8 +415,8 @@ export function buildStats(
       bestPercent: sessions.reduce((m, s) => Math.max(m, s.percent), 0),
       totalTimeMs: sessions.reduce((s, x) => s + x.durationMs, 0),
       timeouts: answers.filter((a) => a.chosen === null).length,
-      questionsInBank: QUESTIONS.length,
-      questionsNeverAsked: QUESTIONS.filter((q) => !qAgg.has(q.id)).length,
+      questionsInBank: bank,
+      questionsNeverAsked: bankQuestions.filter((q) => !qAgg.has(q.id)).length,
     },
     players: [...byPlayer.values()].sort((a, b) => b.bestPercent - a.bestPercent || b.bestScore - a.bestScore),
     sessions,

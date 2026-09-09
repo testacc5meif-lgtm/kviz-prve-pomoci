@@ -6,8 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { QuestionCard, type Verdict } from "@/components/QuestionCard";
 import { ResultScreen, type PlayedAnswer } from "@/components/ResultScreen";
 import { TimerRing } from "@/components/TimerRing";
-import { ELIMINATION_AFTER, MODE_CONFIG, scoreAnswer, streakMultiplier } from "@/lib/quiz";
-import type { RoundKind, RoundQuestion } from "@/lib/types";
+import { PROGRAMS } from "@/lib/questions";
+import { scoreAnswer, streakMultiplier, timing } from "@/lib/quiz";
+import type { ProgramId, RoundKind, RoundQuestion } from "@/lib/types";
 
 type Phase = "loading" | "countdown" | "playing" | "finished" | "error";
 
@@ -25,6 +26,7 @@ export default function KvizPage() {
 
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
+  const [program, setProgram] = useState<ProgramId>("omladina");
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState("");
 
@@ -56,7 +58,8 @@ export default function KvizPage() {
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const current = round[index];
-  const msTotal = current ? MODE_CONFIG[current.mode].seconds * 1000 : 1;
+  const clock = timing(program, current?.mode ?? "classic");
+  const msTotal = Math.max(1, clock.seconds * 1000);
   const msLeft = Math.max(0, msTotal - elapsed);
 
   /* ── učitavanje igrača ── */
@@ -69,6 +72,8 @@ export default function KvizPage() {
     try {
       storedName = localStorage.getItem("ck_name") ?? "";
       storedTeam = localStorage.getItem("ck_team") ?? "";
+      const p = localStorage.getItem("ck_program");
+      if (p === "petlici" || p === "omladina") setProgram(p);
     } catch {
       /* privatni prozor */
     }
@@ -92,7 +97,7 @@ export default function KvizPage() {
         const res = await fetch("/api/round", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, team, kind: opts.kind, only: opts.only }),
+          body: JSON.stringify({ name, team, program, kind: opts.kind, only: opts.only }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error ?? "Runda nije mogla da se pripremi.");
@@ -120,7 +125,7 @@ export default function KvizPage() {
         setBusy(false);
       }
     },
-    [name, team]
+    [name, team, program]
   );
 
   // Ref cuva od dvostrukog dohvatanja (React StrictMode u razvoju pokrece efekte dvaput).
@@ -156,7 +161,8 @@ export default function KvizPage() {
       if (answeredIndex.current === index) return;
       answeredIndex.current = index;
 
-      const spent = Math.max(0, Math.min(msTotal, Date.now() - questionStart.current));
+      // Bez ograničenja vremena spent može preći prikazani sat — to je u redu.
+      const spent = Math.max(0, Date.now() - questionStart.current);
       const isCorrect = choice !== null && choice === current.correct;
       const points = scoreAnswer({
         mode: current.mode,
@@ -164,7 +170,7 @@ export default function KvizPage() {
         msLeft: msTotal - spent,
         msTotal,
         streakBefore: streak,
-        eliminationUsed: current.mode === "elimination" && spent >= ELIMINATION_AFTER * 1000,
+        eliminationUsed: current.mode === "elimination" && spent >= clock.eliminationAfter * 1000,
       });
 
       setVerdict({ chosen: choice, points });
@@ -188,7 +194,7 @@ export default function KvizPage() {
         setStreak(0);
       }
     },
-    [current, verdict, msTotal, streak, index]
+    [current, verdict, msTotal, streak, index, clock.eliminationAfter]
   );
 
   // Sat drzimo u refu da interval ne mora da se pravi iznova na svaku promenu bodova.
@@ -202,13 +208,14 @@ export default function KvizPage() {
      zastarela vrednost sa prethodnog pitanja odmah oborila sledece. */
   useEffect(() => {
     if (phase !== "playing" || verdict !== null || !current) return;
-    const total = MODE_CONFIG[current.mode].seconds * 1000;
+    const t = timing(program, current.mode);
+    const total = t.seconds * 1000;
 
     const tick = () => {
       const spent = Math.max(0, Date.now() - questionStart.current);
       setElapsed(spent);
 
-      if (current.mode === "elimination" && spent >= ELIMINATION_AFTER * 1000) {
+      if (current.mode === "elimination" && spent >= t.eliminationAfter * 1000) {
         setEliminated((prev) => {
           if (prev !== null) return prev;
           const wrongIdx = current.options.map((_, i) => i).filter((i) => i !== current.correct);
@@ -216,12 +223,13 @@ export default function KvizPage() {
         });
       }
 
-      if (spent >= total) finishRef.current(null);
+      // Kod petlića sat samo odbrojava — pitanje nikada ne ističe samo od sebe.
+      if (t.timed && spent >= total) finishRef.current(null);
     };
 
     const id = setInterval(tick, 100);
     return () => clearInterval(id);
-  }, [phase, verdict, current, index]);
+  }, [phase, verdict, current, index, program]);
 
   // Reset za sledece pitanje radimo ovde (u dogadjaju), a ne u efektu na promenu indeksa.
   const goNext = useCallback(() => {
@@ -302,7 +310,10 @@ export default function KvizPage() {
         }
         return;
       }
-      const map: Record<string, number> = { "1": 0, "2": 1, "3": 2, a: 0, b: 1, v: 2 };
+      const map: Record<string, number> = {
+        "1": 0, "2": 1, "3": 2, "4": 3, "5": 4,
+        a: 0, b: 1, v: 2, g: 3, d: 4,
+      };
       const idx = map[e.key.toLowerCase()];
       if (idx !== undefined && current && idx < current.options.length && eliminated !== idx) {
         finishAnswer(idx);
@@ -382,7 +393,12 @@ export default function KvizPage() {
           {countdown > 0 ? countdown : "KRENI!"}
         </motion.div>
         <p className="mt-8 text-center text-sm text-[var(--muted)]">
-          {round.length} pitanja • odgovaraj tasterima 1/2/3 ili klikom
+          {PROGRAMS[program].emoji} {PROGRAMS[program].label} • {round.length} pitanja
+        </p>
+        <p className="mt-1 text-center text-xs text-[var(--faint)]">
+          {clock.timed
+            ? "Odgovaraj tasterima 1/2/3 ili klikom"
+            : "Nema žurbe — sat odbrojava, ali pitanje te čeka koliko god treba"}
         </p>
       </main>
     );
@@ -463,6 +479,7 @@ export default function KvizPage() {
           <TimerRing
             fraction={msLeft / msTotal}
             secondsLeft={Math.ceil(msLeft / 1000)}
+            relaxed={!clock.timed}
           />
         </div>
       </div>
@@ -494,8 +511,11 @@ export default function KvizPage() {
       </AnimatePresence>
 
       <p className="mt-4 text-center text-[11px] text-[var(--faint)]">
-        Prečice: <span className="font-bold">1 / 2 / 3</span> za odgovor,{" "}
-        <span className="font-bold">Enter</span> za dalje
+        Prečice:{" "}
+        <span className="font-bold">
+          {Array.from({ length: current?.options.length ?? 3 }, (_, i) => i + 1).join(" / ")}
+        </span>{" "}
+        za odgovor, <span className="font-bold">Enter</span> za dalje
       </p>
     </main>
   );

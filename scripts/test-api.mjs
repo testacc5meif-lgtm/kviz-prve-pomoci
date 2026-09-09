@@ -233,6 +233,80 @@ check(
   rCsvSel.status === 200 && csvSel.includes(detName) && csvSel.includes("tekst_izabranog")
 );
 
+console.log("\n── 11. Kviz za petliće ──");
+const petName = `Petlic Bot ${Date.now() % 100000}`;
+const { res: rPet, data: pet } = await jsonPost("/api/round", {
+  name: petName,
+  team: "1. razred",
+  program: "petlici",
+  kind: "round",
+});
+
+check("status 200", rPet.status === 200, `dobijeno ${rPet.status}`);
+check("runda ima 15 pitanja", pet?.questions?.length === 15, `dobijeno ${pet?.questions?.length}`);
+check("program je petlici", pet?.program === "petlici", String(pet?.program));
+check("nema isteka vremena", pet?.timed === false, `timed=${pet?.timed}`);
+check("baza petlića ima 42 pitanja", pet?.progress?.total === 42, `dobijeno ${pet?.progress?.total}`);
+
+const petModes = [...new Set(pet.questions.map((q) => q.mode))];
+check(
+  "koriste se samo blagi režimi (bez munje i duplo-ili-ništa)",
+  petModes.every((m) => m === "classic" || m === "elimination"),
+  petModes.join(", ")
+);
+check("sva pitanja su iz baze petlića", pet.questions.every((q) => q.id.startsWith("p")));
+
+// Odgovaramo POLAKO — duže od prikazanog sata (90s), da proverimo da se ne kažnjava.
+const petAnswers = pet.questions.map((q, i) => ({
+  chosen: i < 12 ? q.correct : (q.correct + 1) % q.options.length,
+  timeMs: 120000,
+  points: 0,
+}));
+const { res: rPetRes, data: petRes } = await jsonPost("/api/result", {
+  token: pet.token,
+  name: petName,
+  team: "1. razred",
+  startedAt: Date.now() - 600000,
+  answers: petAnswers,
+});
+check("rezultat je sačuvan", rPetRes.status === 200 && petRes?.saved === true);
+check("12 tačnih od 15", petRes?.session?.correct === 12, `dobijeno ${petRes?.session?.correct}`);
+check("sporo odgovaranje i dalje nosi pune bodove", petRes?.session?.score > 0, `${petRes?.session?.score} bodova`);
+check("sesija je označena kao petlici", petRes?.session?.program === "petlici", String(petRes?.session?.program));
+
+console.log("\n── 12. Programi su odvojeni ──");
+// Isti igrač u drugom programu mora da krene od nule.
+const { data: sameNameOmladina } = await jsonPost("/api/round", {
+  name: petName,
+  team: "1. razred",
+  program: "omladina",
+  kind: "round",
+});
+check(
+  "napredak se ne prenosi između kvizova",
+  sameNameOmladina?.progress?.mastered === 0,
+  `savladano ${sameNameOmladina?.progress?.mastered}`
+);
+check("omladinska runda ima 25 pitanja", sameNameOmladina?.questions?.length === 25);
+check(
+  "omladinska runda ne sadrži pitanja petlića",
+  sameNameOmladina.questions.every((q) => !q.id.startsWith("p")) 
+);
+
+const rPetStats = await fetch(`${BASE}/api/admin/stats?program=petlici`, { headers: { cookie } });
+const petStats = await rPetStats.json();
+check("admin vidi petliće", petStats.program === "petlici" && petStats.totals.questionsInBank === 42,
+  `baza ${petStats.totals?.questionsInBank}`);
+check("petlić se vidi u svojoj statistici", petStats.players?.some((p) => p.name === petName));
+
+const rOmlStats = await fetch(`${BASE}/api/admin/stats?program=omladina`, { headers: { cookie } });
+const omlStats = await rOmlStats.json();
+check("admin za omladinu ima svoju bazu", omlStats.totals.questionsInBank === 90, `baza ${omlStats.totals?.questionsInBank}`);
+check(
+  "petlićeve runde se ne mešaju sa omladinom",
+  !omlStats.sessions.some((x) => x.playerName === petName)
+);
+
 console.log("\n── 10. Trajanje režima igre ──");
 const secs = { classic: 45, speed: 20, elimination: 30, double: 30, lightning: 15 };
 console.log("  (očekivano: klasično 45s, brzi metak 20s, pola-pola 30s, duplo 30s, munja 15s)");

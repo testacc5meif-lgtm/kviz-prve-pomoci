@@ -4,11 +4,11 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { TOTAL_QUESTIONS } from "@/lib/questions";
-import { MODE_CONFIG, ROUND_SIZE, normalizeName } from "@/lib/quiz";
-import type { GameMode } from "@/lib/types";
+import { BANK_SIZE, PROGRAMS } from "@/lib/questions";
+import { MODE_CONFIG, PROGRAM_RULES, normalizeName } from "@/lib/quiz";
+import type { ProgramId } from "@/lib/types";
 
-const MODES = Object.entries(MODE_CONFIG) as [GameMode, (typeof MODE_CONFIG)[GameMode]][];
+const PROGRAM_IDS: ProgramId[] = ["petlici", "omladina"];
 
 function RedCross({ className = "" }: { className?: string }) {
   return (
@@ -33,25 +33,32 @@ function RedCross({ className = "" }: { className?: string }) {
 
 export default function Home() {
   const router = useRouter();
+  const [program, setProgram] = useState<ProgramId>("omladina");
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
   const [error, setError] = useState("");
   const [leaving, setLeaving] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // localStorage postoji tek na klijentu. Citanje u inicijalizatoru state-a bi
+  // localStorage postoji tek na klijentu. Čitanje u inicijalizatoru state-a bi
   // razbilo hidraciju (server renderuje prazna polja), pa je efekat ispravan put.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {
       setName(localStorage.getItem("ck_name") ?? "");
       setTeam(localStorage.getItem("ck_team") ?? "");
+      const p = localStorage.getItem("ck_program");
+      if (p === "petlici" || p === "omladina") setProgram(p);
     } catch {
       /* privatni prozor — samo krećemo od praznog */
     }
     setReady(true);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  const rules = PROGRAM_RULES[program];
+  const cfg = PROGRAMS[program];
+  const modes = rules.modes.map((m) => [m, MODE_CONFIG[m]] as const);
 
   function start(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +70,7 @@ export default function Home() {
     try {
       localStorage.setItem("ck_name", clean);
       localStorage.setItem("ck_team", normalizeName(team));
+      localStorage.setItem("ck_program", program);
     } catch {
       /* nastavljamo i bez pamćenja */
     }
@@ -107,37 +115,67 @@ export default function Home() {
               transition={{ delay: 0.32, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               className="gradient-text text-center text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl"
             >
-              Kviz prve pomoći
+              Kviz Crvenog krsta
             </motion.h1>
 
-            <motion.p
-              initial={{ y: 14 }}
-              animate={{ y: 0 }}
-              transition={{ delay: 0.42 }}
-              className="mt-4 max-w-xl text-center text-[15px] leading-relaxed text-[var(--muted)] sm:text-base"
-            >
-              Trening za takmičare i volontere. {ROUND_SIZE} nasumičnih pitanja po rundi,
-              izmešani ponuđeni odgovori i pet različitih režima igre — da se uči znanje,
-              a ne redosled odgovora.
-            </motion.p>
-
-            {/* ── Brojke ── */}
+            {/* ── Izbor programa ── */}
             <motion.div
-              initial={{ y: 14 }}
+              initial={{ y: 20 }}
               animate={{ y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="mt-7 flex flex-wrap items-center justify-center gap-2.5"
+              transition={{ delay: 0.42, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="mt-7 w-full max-w-2xl"
             >
-              {[
-                { v: TOTAL_QUESTIONS, l: "pitanja u bazi" },
-                { v: ROUND_SIZE, l: "po rundi" },
-                { v: MODES.length, l: "režima igre" },
-              ].map((s) => (
-                <div key={s.l} className="glass rounded-xl px-4 py-2.5 text-center">
-                  <div className="tabular text-xl font-extrabold text-white">{s.v}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--faint)]">{s.l}</div>
-                </div>
-              ))}
+              <h2 className="mb-3 text-center text-xs font-bold uppercase tracking-[0.28em] text-[var(--muted)]">
+                Izaberi kviz
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {PROGRAM_IDS.map((id) => {
+                  const p = PROGRAMS[id];
+                  const on = program === id;
+                  return (
+                    <motion.button
+                      key={id}
+                      type="button"
+                      onClick={() => setProgram(id)}
+                      whileHover={{ y: -4 }}
+                      whileTap={{ scale: 0.985 }}
+                      aria-pressed={on}
+                      className="glass relative overflow-hidden rounded-2xl p-5 text-left transition"
+                      style={{
+                        borderColor: on ? p.color : "var(--border)",
+                        boxShadow: on ? `0 0 0 1px ${p.color}, 0 18px 50px -20px ${p.color}` : undefined,
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{p.emoji}</span>
+                        <span className="font-extrabold" style={{ color: on ? p.color : "#fff" }}>
+                          {p.label}
+                        </span>
+                        {on && (
+                          <span
+                            className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase"
+                            style={{ background: `${p.color}26`, color: p.color }}
+                          >
+                            izabrano
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">{p.opis}</p>
+                      <div className="tabular mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-[var(--faint)]">
+                        <span className="rounded-md bg-white/8 px-2 py-1">
+                          {BANK_SIZE[id]} pitanja
+                        </span>
+                        <span className="rounded-md bg-white/8 px-2 py-1">
+                          {PROGRAM_RULES[id].roundSize} po rundi
+                        </span>
+                        <span className="rounded-md bg-white/8 px-2 py-1">
+                          {PROGRAM_RULES[id].timed ? "sa ograničenjem vremena" : "bez isteka vremena"}
+                        </span>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
             </motion.div>
 
             {/* ── Forma ── */}
@@ -146,12 +184,16 @@ export default function Home() {
               initial={{ y: 26 }}
               animate={{ y: 0 }}
               transition={{ delay: 0.58, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-              className="glass glow-red mt-9 w-full max-w-md rounded-2xl p-6"
+              className="glass glow-red mt-7 w-full max-w-md rounded-2xl p-6"
             >
-              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+              <label
+                htmlFor="ime"
+                className="mb-2 block text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
+              >
                 Ime i prezime <span className="text-[var(--red)]">*</span>
               </label>
               <input
+                id="ime"
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -164,10 +206,14 @@ export default function Home() {
                 className="w-full rounded-xl border border-[var(--border)] bg-black/30 px-4 py-3 text-base text-white outline-none transition placeholder:text-[var(--faint)] focus:border-[var(--red)] focus:ring-4 focus:ring-[var(--red)]/20"
               />
 
-              <label className="mb-2 mt-4 block text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+              <label
+                htmlFor="ekipa"
+                className="mb-2 mt-4 block text-xs font-bold uppercase tracking-wider text-[var(--muted)]"
+              >
                 Ekipa / škola <span className="normal-case text-[var(--faint)]">(nije obavezno)</span>
               </label>
               <input
+                id="ekipa"
                 value={team}
                 onChange={(e) => setTeam(e.target.value)}
                 placeholder="npr. OŠ Milan Rakić"
@@ -175,47 +221,39 @@ export default function Home() {
                 className="w-full rounded-xl border border-[var(--border)] bg-black/30 px-4 py-3 text-base text-white outline-none transition placeholder:text-[var(--faint)] focus:border-[var(--red)] focus:ring-4 focus:ring-[var(--red)]/20"
               />
 
-              <AnimatePresence>
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-3 text-sm font-semibold text-[var(--red-soft)]"
-                  >
-                    {error}
-                  </motion.p>
-                )}
-              </AnimatePresence>
+              {error && <p className="mt-3 text-sm font-semibold text-[var(--red-soft)]">{error}</p>}
 
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.025 }}
                 whileTap={{ scale: 0.97 }}
-                className="group relative mt-6 w-full overflow-hidden rounded-xl bg-[var(--red)] px-6 py-4 text-base font-extrabold tracking-wide text-white shadow-[0_14px_40px_-12px_rgba(239,43,61,0.85)] transition hover:bg-[#ff3546]"
+                className="group relative mt-6 w-full overflow-hidden rounded-xl px-6 py-4 text-base font-extrabold tracking-wide text-white shadow-[0_14px_40px_-12px_rgba(239,43,61,0.85)] transition"
+                style={{ background: cfg.color }}
               >
-                <span className="relative z-10">Započni kviz →</span>
+                <span className="relative z-10">
+                  {cfg.emoji} Započni kviz — {cfg.short} →
+                </span>
                 <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               </motion.button>
 
               <p className="mt-3 text-center text-xs leading-relaxed text-[var(--faint)]">
-                Tvoj rezultat se pamti pod ovim imenom, pa sledeći put dobijaš pitanja
-                koja još nisi savladao.
+                {rules.roundSize} nasumičnih pitanja, izmešani ponuđeni odgovori. Rezultat se pamti pod
+                ovim imenom, pa sledeći put dobijaš pitanja koja još nisi savladao.
               </p>
             </motion.form>
 
             {/* ── Režimi igre ── */}
-            <motion.div
-              initial={{ y: 10 }}
-              animate={{ y: 0 }}
-              transition={{ delay: 0.75 }}
-              className="mt-14 w-full"
-            >
-              <h2 className="mb-4 text-center text-xs font-bold uppercase tracking-[0.28em] text-[var(--muted)]">
-                Režimi koji te čekaju
+            <motion.div initial={{ y: 10 }} animate={{ y: 0 }} transition={{ delay: 0.75 }} className="mt-12 w-full">
+              <h2 className="mb-1 text-center text-xs font-bold uppercase tracking-[0.28em] text-[var(--muted)]">
+                Kako izgleda {"„"}{cfg.short}{"“"}
               </h2>
+              <p className="mb-4 text-center text-[13px] text-[var(--faint)]">
+                {rules.timed
+                  ? "Svako pitanje ima svoje vreme — brži odgovor nosi više bodova."
+                  : "Sat se vidi i odbrojava, ali kad dođe do nule ništa se ne dešava — pitanje čeka koliko god treba."}
+              </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {MODES.map(([id, cfg], i) => (
+                {modes.map(([id, m], i) => (
                   <motion.div
                     key={id}
                     initial={{ y: 18 }}
@@ -223,18 +261,24 @@ export default function Home() {
                     transition={{ delay: 0.8 + i * 0.07 }}
                     whileHover={{ y: -5 }}
                     className="glass rounded-xl p-4"
-                    style={{ borderColor: `${cfg.color}33` }}
+                    style={{ borderColor: `${m.color}33` }}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{cfg.emoji}</span>
-                      <span className="font-extrabold" style={{ color: cfg.color }}>
-                        {cfg.label}
+                      <span className="text-xl">{m.emoji}</span>
+                      <span className="font-extrabold" style={{ color: m.color }}>
+                        {m.label}
                       </span>
                       <span className="tabular ml-auto rounded-md bg-white/8 px-1.5 py-0.5 text-[11px] font-bold text-[var(--muted)]">
-                        {cfg.seconds}s
+                        {rules.timed ? `${m.seconds}s` : "bez isteka"}
                       </span>
                     </div>
-                    <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">{cfg.hint}</p>
+                    <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
+                      {rules.timed
+                        ? m.hint
+                        : id === "elimination"
+                          ? `Ako se dvoumiš, posle ${rules.eliminationAfter}s nestaje jedan netačan odgovor.`
+                          : "Razmisli u miru pa odgovori."}
+                    </p>
                   </motion.div>
                 ))}
               </div>
@@ -253,8 +297,7 @@ export default function Home() {
                 🔒 Istorija rezultata (za organizatore)
               </Link>
               <p className="max-w-md text-center text-[11px] leading-relaxed text-[var(--faint)]">
-                Ovo je vežba za učenje, a ne zamena za obuku. Kod nekoliko pitanja su skenirane
-                verzije testa protivrečne — takva pitanja nose napomenu posle odgovora.
+                Ovo je vežba za učenje, a ne zamena za obuku Crvenog krsta.
               </p>
             </motion.div>
           </motion.div>

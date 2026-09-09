@@ -1,7 +1,52 @@
 import { QUESTIONS, QUESTION_BY_ID } from "./questions";
-import type { GameMode, Question, RoundQuestion } from "./types";
+import type { GameMode, ProgramId, Question, RoundQuestion } from "./types";
 
 export const ROUND_SIZE = 25;
+
+/**
+ * Pravila po programu.
+ *
+ * `timed: false` (petlići) znači: sat se i dalje prikazuje i odbrojava, ali kad
+ * dođe do nule ništa se ne dešava — pitanje ostaje otvoreno dok dete ne odgovori.
+ * Deca od 1. do 4. razreda ne treba da gube poene zato što sporije čitaju.
+ */
+export const PROGRAM_RULES: Record<
+  ProgramId,
+  {
+    roundSize: number;
+    timed: boolean;
+    /** Od koliko sekundi sat kreće kod netajmiranih programa. */
+    displaySeconds: number;
+    modes: GameMode[];
+    /** Posle koliko sekundi „Pola-pola" ukloni jedan netačan odgovor. */
+    eliminationAfter: number;
+  }
+> = {
+  omladina: {
+    roundSize: 25,
+    timed: true,
+    displaySeconds: 0,
+    modes: ["classic", "speed", "elimination", "double", "lightning"],
+    eliminationAfter: 12,
+  },
+  petlici: {
+    roundSize: 15,
+    timed: false,
+    displaySeconds: 90,
+    modes: ["classic", "elimination"],
+    eliminationAfter: 25,
+  },
+};
+
+/** Koliko sekundi traje pitanje i da li uopšte može da istekne. */
+export function timing(program: ProgramId, mode: GameMode) {
+  const r = PROGRAM_RULES[program];
+  return {
+    seconds: r.timed ? MODE_CONFIG[mode].seconds : r.displaySeconds,
+    timed: r.timed,
+    eliminationAfter: r.eliminationAfter,
+  };
+}
 
 export const MODE_CONFIG: Record<
   GameMode,
@@ -51,7 +96,7 @@ export const MODE_CONFIG: Record<
 
 /** Kazneni bodovi za promašen "Duplo ili ništa". */
 export const DOUBLE_PENALTY = 100;
-/** Posle koliko sekundi "Pola-pola" ukloni jedan netačan odgovor. */
+/** Podrazumevano: posle koliko sekundi "Pola-pola" ukloni jedan netačan odgovor. */
 export const ELIMINATION_AFTER = 12;
 /** Umanjenje bodova ako je igrač dočekao eliminaciju netačnog odgovora. */
 export const ELIMINATION_PENALTY_FACTOR = 0.5;
@@ -130,13 +175,14 @@ export function shuffle<T>(arr: readonly T[], rand: () => number): T[] {
  * takmičar u istoj rundi dobio isto pitanje sa dva različita seta odgovora.
  */
 export function pickQuestions(opts: {
+  program: ProgramId;
   count: number;
   mastered: Set<string>;
   weak: Set<string>;
   rand: () => number;
   only?: string[];
 }): Question[] {
-  const { count, mastered, weak, rand, only } = opts;
+  const { program, count, mastered, weak, rand, only } = opts;
 
   if (only && only.length) {
     const list = only.map((id) => QUESTION_BY_ID.get(id)).filter((q): q is Question => Boolean(q));
@@ -147,6 +193,7 @@ export function pickQuestions(opts: {
   const wrong: Question[] = [];
   const known: Question[] = [];
   for (const q of QUESTIONS) {
+    if (q.program !== program) continue;
     if (weak.has(q.id)) wrong.push(q);
     else if (mastered.has(q.id)) known.push(q);
     else unseen.push(q);
@@ -180,8 +227,23 @@ export function pickQuestions(opts: {
 }
 
 /** Raspoređuje režime igre po rundi — poslednja pitanja su uvek "Munja". */
-export function assignModes(count: number, rand: () => number): GameMode[] {
+export function assignModes(program: ProgramId, count: number, rand: () => number): GameMode[] {
   if (count <= 0) return [];
+
+  // Petlići: bez vremenskog pritiska i bez kaznenih poena — samo klasično
+  // i „Pola-pola", koje im posle nekog vremena skloni jedan netačan odgovor.
+  if (!PROGRAM_RULES[program].timed) {
+    const elim = Math.max(1, Math.round(count * 0.25));
+    const pool: GameMode[] = [
+      ...Array<GameMode>(Math.max(0, count - elim)).fill("classic"),
+      ...Array<GameMode>(elim).fill("elimination"),
+    ];
+    const mixed = shuffle(pool, rand);
+    const firstClassic = mixed.indexOf("classic");
+    if (firstClassic > 0) [mixed[0], mixed[firstClassic]] = [mixed[firstClassic], mixed[0]];
+    return mixed;
+  }
+
   if (count <= 3) {
     return Array.from({ length: count }, (_, i) => (i === count - 1 ? "speed" : "classic"));
   }
@@ -214,6 +276,7 @@ export function assignModes(count: number, rand: () => number): GameMode[] {
 export type BuiltQuestion = RoundQuestion & { order: number[] };
 
 export function buildRound(opts: {
+  program: ProgramId;
   count: number;
   mastered: Set<string>;
   weak: Set<string>;
@@ -222,7 +285,7 @@ export function buildRound(opts: {
 }): BuiltQuestion[] {
   const rand = rng(opts.seed);
   const picked = pickQuestions({ ...opts, rand });
-  const modes = assignModes(picked.length, rand);
+  const modes = assignModes(opts.program, picked.length, rand);
 
   return picked.map((q, i) => {
     const order = shuffle(
@@ -231,6 +294,7 @@ export function buildRound(opts: {
     );
     return {
       id: q.id,
+      program: q.program,
       topic: q.topic,
       text: q.text,
       options: order.map((idx) => q.options[idx]),

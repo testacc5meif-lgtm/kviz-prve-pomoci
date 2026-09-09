@@ -1,3 +1,6 @@
+/** Dva odvojena programa — svaki ima svoju bazu pitanja i svoju istoriju. */
+export type ProgramId = "omladina" | "petlici";
+
 export type TopicId =
   | "pristup"
   | "pregled"
@@ -6,11 +9,18 @@ export type TopicId =
   | "krvarenje"
   | "povrede"
   | "stanja"
-  | "trovanja";
+  | "trovanja"
+  // ─── oblasti za petliće (1–4. razred) ───
+  | "humanost"
+  | "istorijat"
+  | "krv"
+  | "osnove";
 
 export type Question = {
   /** Stabilan ID — NIKADA ne menjati, na njega se vezuje istorija u bazi. */
   id: string;
+  /** Kom programu pitanje pripada. */
+  program: ProgramId;
   topic: TopicId;
   text: string;
   /** Uvek u originalnom redosledu iz testa; mešanje se radi u runtime-u. */
@@ -32,6 +42,7 @@ export type GameMode = "classic" | "speed" | "elimination" | "double" | "lightni
 /** Pitanje pripremljeno za rundu — opcije su već izmešane. */
 export type RoundQuestion = {
   id: string;
+  program: ProgramId;
   topic: TopicId;
   text: string;
   options: string[];

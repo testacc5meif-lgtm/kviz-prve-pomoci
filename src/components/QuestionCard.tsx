@@ -5,7 +5,8 @@ import { TOPICS } from "@/lib/questions";
 import { MODE_CONFIG } from "@/lib/quiz";
 import type { RoundQuestion } from "@/lib/types";
 
-const LETTERS = ["A", "B", "V"];
+/** Petlićka pitanja umeju da imaju 4 ili 5 ponuđenih odgovora. */
+const LETTERS = ["A", "B", "V", "G", "D"];
 
 export type Verdict = { chosen: number | null; points: number } | null;
 
