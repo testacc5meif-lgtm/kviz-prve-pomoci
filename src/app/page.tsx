@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BANK_SIZE, PROGRAMS } from "@/lib/questions";
 import { MODE_CONFIG, PROGRAM_RULES, normalizeName } from "@/lib/quiz";
 import type { ProgramId } from "@/lib/types";
@@ -39,6 +39,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [leaving, setLeaving] = useState(false);
   const [ready, setReady] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // localStorage postoji tek na klijentu. Čitanje u inicijalizatoru state-a bi
   // razbilo hidraciju (server renderuje prazna polja), pa je efekat ispravan put.
@@ -59,6 +60,21 @@ export default function Home() {
   const rules = PROGRAM_RULES[program];
   const cfg = PROGRAMS[program];
   const modes = rules.modes.map((m) => [m, MODE_CONFIG[m]] as const);
+
+  /**
+   * Posle izbora kviza spuštamo korisnika pravo na polje za ime.
+   * Gladak skrol neki pregledači pauziraju (npr. dok je kartica u pozadini),
+   * pa posle kratke pauze proverimo da li se pomerilo i, ako nije, skočimo odmah.
+   */
+  function scrollToForm() {
+    const el = formRef.current;
+    if (!el) return;
+    const before = window.scrollY;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      if (Math.abs(window.scrollY - before) < 4) el.scrollIntoView({ block: "center" });
+    }, 350);
+  }
 
   function start(e: React.FormEvent) {
     e.preventDefault();
@@ -136,7 +152,10 @@ export default function Home() {
                     <motion.button
                       key={id}
                       type="button"
-                      onClick={() => setProgram(id)}
+                      onClick={() => {
+                        setProgram(id);
+                        scrollToForm();
+                      }}
                       whileHover={{ y: -4 }}
                       whileTap={{ scale: 0.985 }}
                       aria-pressed={on}
@@ -180,6 +199,7 @@ export default function Home() {
 
             {/* ── Forma ── */}
             <motion.form
+              ref={formRef}
               onSubmit={start}
               initial={{ y: 26 }}
               animate={{ y: 0 }}
