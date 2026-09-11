@@ -368,6 +368,7 @@ const OMLADINA: QuestionSeed[] = [
   {
     id: "b31",
     topic: "krvarenje",
+    group: "esmarhova-poveska",
     text: "Kod osobe kod koje je nastala amputacija usled povrede nije dozvoljena upotreba Esmarhove poveske zbog:",
     options: [
       "Neadekvatne kompresije koju nije moguće kontrolisati",
@@ -819,6 +820,7 @@ const OMLADINA: QuestionSeed[] = [
   {
     id: "d27",
     topic: "krvarenje",
+    group: "esmarhova-poveska",
     text: "Da li je dozvoljeno poveskom zaustaviti krvarenje u okviru laičke prve pomoći?",
     options: ["Da", "Ne", "Da, ako je u pitanju teška povreda npr. amputacija"],
     correct: 1,
@@ -954,12 +956,120 @@ const OMLADINA: QuestionSeed[] = [
     ],
     correct: 0,
   },
+
+  // ───────── DOPUNSKI LIST — Crveni krst Srbije, pitanja 51–60 ─────────
+  {
+    id: "f51",
+    topic: "pristup",
+    visual: "💥",
+    text: "Šta označava prikazani znak?",
+    options: ["Radioaktivna materija", "Opasnost od požara", "Sklono eksploziji"],
+    correct: 2,
+  },
+  {
+    id: "f52",
+    topic: "povrede",
+    text: "Konstatovali ste smrzotinu obe šake kod povređenog lica. Dozvoljeni postupci su:",
+    options: [
+      "Smrznuti deo postaviti blizu izvora toplote",
+      "Trljati smrznuti deo tela sterilnom gazom",
+      "Šake postaviti u pazušne jame spasioca",
+    ],
+    correct: 2,
+    note: "Pazušna jama daje najpovoljniju telesnu temperaturu. Naglo zagrevanje i trljanje dodatno oštećuju smrznuto tkivo.",
+  },
+  {
+    id: "f53",
+    topic: "povrede",
+    text: "Opekotine nastale na licu se:",
+    options: [
+      "Previjaju",
+      "Mogu dodirivati radi skidanja oštećenog tkiva",
+      "Ne zavijaju se — samo se hlade i ostavljaju otkrivene do dolaska u bolnicu",
+    ],
+    correct: 2,
+  },
+  {
+    id: "f54",
+    topic: "povrede",
+    text: "Najčešća povreda koštano-zglobnog sistema je:",
+    options: ["Prelom", "Uganuće", "Iščašenje"],
+    correct: 0,
+  },
+  {
+    id: "f55",
+    topic: "povrede",
+    text: "Pravilno zbrinjavanje zatvorenog preloma ključne kosti je:",
+    options: [
+      "Postavljanje imobilizacije (marama u vidu uprtača)",
+      "Postavljanje zavoja za oba ramena",
+      "U pazuh sa povređene strane staviti jastuče gaze, pa priljubiti ruku uz grudni koš sa šakom ka suprotnom ramenu",
+    ],
+    correct: 2,
+  },
+  {
+    id: "f56",
+    topic: "krvarenje",
+    group: "esmarhova-poveska",
+    text: "Upotreba Esmarhove poveske je:",
+    options: [
+      "Nedozvoljena, jer može oštetiti amputacioni patrljak",
+      "Dozvoljena i laicima i zdravstvenim radnicima",
+      "Dozvoljena laicima, jer se tako najbrže zaustavlja krvarenje",
+    ],
+    correct: 0,
+  },
+  {
+    id: "f57",
+    topic: "krvarenje",
+    text: "Prava privremena hemostaza predstavlja koji stepen hemostaze?",
+    options: ["3", "2", "1"],
+    correct: 2,
+  },
+  {
+    id: "f58",
+    topic: "disajni",
+    text: "Otvaranje disajnog puta kod deteta od jedne godine do puberteta vršimo postupkom:",
+    options: [
+      "Povlačenjem brade i donje vilice",
+      "Potiskivanjem jezika ka donjoj vilici",
+      "Primenom manevra „pritisni čelo — podigni bradu”",
+    ],
+    correct: 2,
+  },
+  {
+    id: "f59",
+    topic: "kpr",
+    text: "Abeceda života ima elemente A, B, C. Šta označava slovo B u navedenom iskazu?",
+    options: [
+      "Postupak obezbeđivanja prohodnosti disajnog puta",
+      "Postupak održavanja cirkulacije",
+      "Postupak održavanja procesa disanja",
+    ],
+    correct: 0,
+    note: "PAŽNJA: po međunarodnoj ABC šemi slovo B je Breathing (disanje), a A je Airway (disajni put). Odgovor je prenet sa skena kakav jeste — proveriti sa instruktorom šta važi na takmičenju.",
+  },
+  {
+    id: "f60",
+    topic: "pregled",
+    text: "Da bismo se orijentisali o težini i vrsti povrede, odnosno naglo nastale bolesti, uradićemo:",
+    options: ["Primarni pregled", "Tercijarni pregled", "Naknadni (sekundarni) pregled"],
+    correct: 0,
+  },
 ];
 
-/** Sva pitanja, sa označenim programom. */
+/**
+ * Pitanja koja su NEDAVNO DODATA — takmičaru na kartici stoji oznaka „NOVO".
+ * Kad prestanu da budu nova, samo isprazni ovaj spisak: `new Set<string>()`.
+ */
+export const NOVA_PITANJA = new Set<string>([
+  "f51", "f52", "f53", "f54", "f55", "f56", "f57", "f58", "f59", "f60",
+]);
+
+/** Sva pitanja, sa označenim programom i oznakom „novo". */
 export const QUESTIONS: Question[] = [
-  ...OMLADINA.map((q): Question => ({ ...q, program: "omladina" })),
-  ...PETLICI.map((q): Question => ({ ...q, program: "petlici" })),
+  ...OMLADINA.map((q): Question => ({ ...q, program: "omladina", isNew: NOVA_PITANJA.has(q.id) })),
+  ...PETLICI.map((q): Question => ({ ...q, program: "petlici", isNew: NOVA_PITANJA.has(q.id) })),
 ];
 
 export const QUESTION_BY_ID = new Map(QUESTIONS.map((q) => [q.id, q]));

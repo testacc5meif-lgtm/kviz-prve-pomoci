@@ -805,6 +805,9 @@ export default function AdminPage() {
                 <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wide">
                   <span className="rounded bg-white/8 px-1.5 py-0.5 text-[var(--faint)]">{q.id}</span>
                   <span className="text-[var(--muted)]">{q.topicLabel}</span>
+                  {q.isNew && (
+                    <span className="rounded bg-[var(--amber)]/20 px-1.5 py-0.5 text-[var(--amber)]">✨ novo</span>
+                  )}
                   <span className="tabular ml-auto text-[var(--faint)]">
                     {q.correct}/{q.asked} tačnih · {(q.avgTimeMs / 1000).toFixed(1)}s
                     {q.timeouts > 0 && ` · ${q.timeouts}× isteklo`}

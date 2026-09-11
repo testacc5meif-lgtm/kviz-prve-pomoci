@@ -58,6 +58,11 @@ export function QuestionCard({
           >
             {mode.emoji} {mode.label}
           </span>
+          {question.isNew && (
+            <span className="rounded-md bg-[var(--amber)]/20 px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide text-[var(--amber)]">
+              ✨ Novo
+            </span>
+          )}
           <span className="tabular ml-auto text-[11px] font-bold text-[var(--faint)]">
             {index + 1} / {total}
           </span>

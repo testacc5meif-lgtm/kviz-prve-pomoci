@@ -86,6 +86,7 @@ export async function POST(req: Request) {
         note: q.note,
         visual: q.visual,
         plate: q.plate,
+        isNew: q.isNew,
       })
     ),
     token,

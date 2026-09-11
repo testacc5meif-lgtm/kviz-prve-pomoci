@@ -301,11 +301,52 @@ check("petlić se vidi u svojoj statistici", petStats.players?.some((p) => p.nam
 
 const rOmlStats = await fetch(`${BASE}/api/admin/stats?program=omladina`, { headers: { cookie } });
 const omlStats = await rOmlStats.json();
-check("admin za omladinu ima svoju bazu", omlStats.totals.questionsInBank === 90, `baza ${omlStats.totals?.questionsInBank}`);
+check("admin za omladinu ima svoju bazu", omlStats.totals.questionsInBank === 100, `baza ${omlStats.totals?.questionsInBank}`);
 check(
   "petlićeve runde se ne mešaju sa omladinom",
   !omlStats.sessions.some((x) => x.playerName === petName)
 );
+
+console.log("\n── 13. Nova pitanja (51–60) ──");
+const NOVI = ["f51", "f52", "f53", "f54", "f55", "f56", "f57", "f58", "f59", "f60"];
+const novName = `Novo Bot ${Date.now() % 100000}`;
+
+// Popravni krug vraća tačno tražena pitanja — deterministično, bez nasumičnosti.
+const { data: rNovi } = await jsonPost("/api/round", {
+  name: novName,
+  team: "",
+  program: "omladina",
+  kind: "retry",
+  only: NOVI,
+});
+const vidjena = new Map(rNovi.questions.map((q) => [q.id, q]));
+
+check("sva nova pitanja postoje u bazi", vidjena.size === NOVI.length, `nađeno ${vidjena.size}/${NOVI.length}`);
+check(
+  "sva nova pitanja nose oznaku „novo”",
+  [...vidjena.values()].every((q) => q.isNew === true),
+  [...vidjena.values()].filter((q) => !q.isNew).map((q) => q.id).join(", ") || "sva nose"
+);
+check("znak eksplozije ima sliku", vidjena.get("f51")?.visual === "💥", String(vidjena.get("f51")?.visual));
+check(
+  "stara pitanja nemaju oznaku „novo”",
+  [...vidjena.values()].length > 0 &&
+    (await jsonPost("/api/round", { name: `${novName} X`, team: "", program: "omladina", kind: "round" })).data.questions
+      .filter((q) => !NOVI.includes(q.id))
+      .every((q) => !q.isNew)
+);
+
+const { data: bank } = await jsonPost("/api/round", { name: `${novName} Z`, team: "", program: "omladina", kind: "round" });
+check("omladinska baza ima 100 pitanja", bank.progress.total === 100, `dobijeno ${bank.progress.total}`);
+
+// Blizanci oko Esmarhove poveske ne smeju zajedno u rundu.
+let zajedno = 0;
+for (let i = 0; i < 12; i++) {
+  const { data: r } = await jsonPost("/api/round", { name: `Grupa Bot ${i}`, team: "", program: "omladina", kind: "round" });
+  const pov = r.questions.filter((q) => ["b31", "d27", "f56"].includes(q.id)).length;
+  if (pov > 1) zajedno++;
+}
+check("pitanja o Esmarhovoj povesci se ne pojavljuju zajedno", zajedno === 0, `sudara: ${zajedno}`);
 
 console.log("\n── 10. Trajanje režima igre ──");
 const secs = { classic: 45, speed: 20, elimination: 30, double: 30, lightning: 15 };

@@ -303,6 +303,7 @@ export function buildRound(opts: {
       note: q.note,
       visual: q.visual,
       plate: q.plate,
+      isNew: q.isNew,
       order,
     };
   });

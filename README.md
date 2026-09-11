@@ -5,7 +5,7 @@ Interaktivni trening kviz sa **dva odvojena programa**. Na ulazu se bira koji se
 | | 🐣 Petlići (1–4. razred) | 🎽 Omladina i podmladak |
 |---|---|---|
 | Gradivo | Šta znaš o Crvenom krstu — humanost, istorijat, davalaštvo krvi, osnove prve pomoći | Takmičarski test prve pomoći |
-| Pitanja u bazi | 42 | 90 |
+| Pitanja u bazi | 42 | 100 |
 | Po rundi | 15 | 25 |
 | Vreme | **sat odbrojava, ali pitanje ne ističe** | svako pitanje ima svoje vreme |
 | Režimi igre | Klasično, Pola-pola | svih 5 režima |
@@ -16,6 +16,7 @@ Zajedničko za oba:
 - **Praćenje napretka po igraču** — sledeća runda donosi pitanja koja još nisu savladana
 - **Popravni krug** — na kraju runde možeš odmah ponoviti samo ono što nisi znao
 - **Odvojena istorija** — isti takmičar u drugom programu kreće od nule
+- **Oznaka „✨ NOVO"** na nedavno dodatim pitanjima
 
 ---
 
@@ -25,6 +26,29 @@ Prvaci i drugaci sporo čitaju. Sat se i dalje vidi i odbrojava od 90 sekundi (d
 igra), ali kad dođe do nule **ništa se ne dešava** — prsten pređe u mirnu plavu boju,
 pokaže smajli i pitanje čeka koliko god treba. Nema kaznenih poena, nema režima
 „Duplo ili ništa" ni „Munja". Brži odgovor i dalje nosi mali bonus.
+
+---
+
+## Oznaka „NOVO" na novim pitanjima
+
+Pitanja koja su nedavno dodata nose narandžastu oznaku **✨ NOVO** na kartici, pored
+oblasti i režima igre. Vide se i u admin panelu, u tabu **Pitanja**.
+
+Spisak je na jednom mestu, u [`src/lib/questions.ts`](src/lib/questions.ts):
+
+```ts
+export const NOVA_PITANJA = new Set<string>([
+  "f51", "f52", "f53", "f54", "f55", "f56", "f57", "f58", "f59", "f60",
+]);
+```
+
+Kad prestanu da budu nova, samo isprazni spisak:
+
+```ts
+export const NOVA_PITANJA = new Set<string>([]);
+```
+
+Kad dodaš sledeću grupu pitanja, upiši njihove ID-jeve umesto ovih.
 
 ---
 
@@ -137,7 +161,7 @@ Dve odvojene baze:
 
 | Program | Fajl | Prefiks ID-ja |
 |---|---|---|
-| Omladina i podmladak | [`src/lib/questions.ts`](src/lib/questions.ts), niz `OMLADINA` | `a`, `b`, `c`, `d`, `e` |
+| Omladina i podmladak | [`src/lib/questions.ts`](src/lib/questions.ts), niz `OMLADINA` | `a`, `b`, `c`, `d`, `e`, `f` |
 | Petlići | [`src/lib/questions-petlici.ts`](src/lib/questions-petlici.ts), niz `PETLICI` | `p` |
 
 Dodaj objekat na kraj odgovarajućeg niza:
@@ -168,6 +192,8 @@ oba u istu rundu. U omladinskoj bazi trenutno ima 20 takvih grupa.
 
 **Nikad ne menjaj postojeći `id`** — na njega je vezana istorija u bazi.
 
+Ako hoćeš da nova pitanja nose oznaku „NOVO", dopiši im ID-jeve u `NOVA_PITANJA`.
+
 Posle dodavanja pokreni `npm run proveri`.
 
 ---
@@ -185,6 +211,12 @@ Skenirane verzije testa bile su na pet mesta protivrečne. Tačni odgovori su po
 | `d15` | 30:2 |
 | `d19` | Gornji desni ugao grudnog koša ispod ključne kosti i pored leve bradavice, s bočne strane |
 | `d38b` | Polusedeći sa savijenim nogama |
+
+### Omladina — pitanje koje treba proveriti
+
+| ID | Problem |
+|---|---|
+| `f59` | „Abeceda života" — sken označava da slovo **B** znači obezbeđivanje prohodnosti disajnog puta. Po međunarodnoj ABC šemi to je **A** (Airway), a **B** je Breathing (disanje). Odgovor je zadržan kakav je na skenu; pitanje nosi napomenu koja se prikazuje posle odgovora. |
 
 ### Petlići — prilagođena pitanja
 

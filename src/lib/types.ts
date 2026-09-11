@@ -35,6 +35,8 @@ export type Question = {
   visual?: string;
   /** Narandžasta ADR tablica za transport opasnih materija (gornji i donji broj). */
   plate?: { top: string; bottom: string };
+  /** Nedavno dodato pitanje — na kartici stoji oznaka „NOVO". Vidi NOVA_PITANJA. */
+  isNew?: boolean;
 };
 
 export type GameMode = "classic" | "speed" | "elimination" | "double" | "lightning";
@@ -51,6 +53,7 @@ export type RoundQuestion = {
   note?: string;
   visual?: string;
   plate?: { top: string; bottom: string };
+  isNew?: boolean;
 };
 
 export type AnswerRecord = {

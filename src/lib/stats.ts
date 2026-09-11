@@ -38,6 +38,7 @@ export type QuestionStat = {
   avgTimeMs: number;
   timeouts: number;
   hasNote: boolean;
+  isNew: boolean;
 };
 
 export type TopicStat = {
@@ -354,6 +355,7 @@ export function buildStats(
       avgTimeMs: agg.asked ? Math.round(agg.time / agg.asked) : 0,
       timeouts: agg.timeouts,
       hasNote: Boolean(q.note),
+      isNew: Boolean(q.isNew),
     };
   });
 
